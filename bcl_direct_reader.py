@@ -22,7 +22,7 @@ you want to extract.
 
 import os, sys, re
 import struct
-import zlib
+import gzip
 
 class BCLReader(object):
 
@@ -109,26 +109,26 @@ class Tile(object):
             end = self.num_cycles
 
         for cycle in range(start, end):
-            cycle_dir = os.path.join(self.data_dir, 'C%d.1' % cycle + 1)
+            cycle_dir = os.path.join(self.data_dir, 'C%i.1' % (cycle + 1))
             cycle_file = os.path.join(cycle_dir, '%s.bcl.gz' % self.prefix)
 
             fh = gzip.open(cycle_file, 'rb')
             bcl_header = fh.read(4)
 
-            #The BCL header should be a fixed length depending on the machine type
-            #For the stuff I'm testing on:
-            assert struct.unpack('<I', bcl_header) == 4309650
+            #The BCL header should be a fixed length depending on the machine type.
+            #This assertion will fail when I try on output from different machines
+            assert struct.unpack('<I', bcl_header)[0] == 4309650
 
             for idx in sorted(seq_collector.keys()):
                 fh.seek(idx + 4)
                 #Is reading bytes 1 at a time slow?  I'd imagine that internal cacheing
                 #negates any need for chunked reads at this level.
-                base_byte = struct.unpack('B', fh.read(1))
+                base_byte, = struct.unpack('B', fh.read(1))
 
                 base = 'N'
                 #qual = 0
                 if base_byte:
-                    base = ('A', 'C', 'G', 'T')((base_byte & 0b11000000) >> 6)
+                    base = ('A', 'C', 'G', 'T')[(base_byte & 0b11000000) >> 6]
                     #qual = (base_byte & 0b00111111) << 2 #Manual says "shifted by 2 bits" but I'm unsure
 
                 seq_collector[idx].append(base)
