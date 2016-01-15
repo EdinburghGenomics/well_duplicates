@@ -8,6 +8,9 @@ outputted by Illumina.  The motivation is that for some QC tasks we want
 to grab a small subsample of reads, and getting these from the FASTQ is
 very inefficient, especially once they are demultiplexed.
 
+We already have a C implementation of this in the bcl2fastq source and
+a Java implementation in Picard Tools, but the world needs Python.
+
 We assume not only the BCL format but also the standard directory
 layout as specified in
 https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/bcl2fastq/bcl2fastq_letterbooklet_15038058brpmi.pdf
@@ -19,6 +22,9 @@ must be decompressed internally to perform the seek().
 Therefore for max efficiency one should call get_seqs() just once with all the locations
 you want to extract.
 """
+
+__version__ = 1.0
+__author__ = 'Tim Booth, Edinburgh Genomics <tim.booth@ed.ac.uk>'
 
 import os, sys, re
 import struct
@@ -35,16 +41,16 @@ class BCLReader(object):
         self.location = location
 
 
-    def get_seq_by_loc(self, lane, tile, index, start=0, end=None):
+    def get_seq(self, lane, tile, cluster_index, start=0, end=None):
         """This is going to be very inefficient for fetching multiple sequences.
            Use get_tile(...).get_seqs([0,2,4,6]) instead.
         """
         tile = self.get_tile(lane, tile)
 
-        result = tile.get_seqs([index], start, end)
+        result = tile.get_seqs([cluster_index], start, end)
 
         #return nuc_string, flag
-        return result[index]
+        return result[cluster_index]
 
     def get_tile(self, lane, tile, in_memory=False):
         """Opens a tile for reading.  You can now use get_seqs() to actually
@@ -70,35 +76,59 @@ class Tile(object):
 
         #Find the file prefix I need to be looking at.  Could infer it
         #from the lane number but instead I'll do it by looking for the
-        #.filter file
+        #matching .filter file
         self.prefix = None
+        self.data_dir = data_dir
+        self.tile = tile
+
         data_dir_listing = os.listdir(data_dir)
         for filt in data_dir_listing:
             amatch = re.match('(.+_%s).filter' % tile, filt)
             if amatch:
                 self.prefix = amatch.group(1)
-                self.filterfile = filt
+                self.filter_file = os.path.join(data_dir, filt)
                 break
 
         if not self.prefix:
             raise RuntimeError("Cannot find a .filter file for tile %s" % tile)
 
-        self.data_dir = data_dir
-        self.tile = tile
-
         #Also work out the number of cycle folders.  Should be 308
+        #for HiSeq 4000
         cycle_dirs = [ f for f in data_dir_listing if re.match('C\d+.1$', f) ]
         self.num_cycles = len(cycle_dirs)
 
-        #TODO - try opening all 307+1 filehandles in advance.  Any speedup?
+        #And also the number of clusters, which should be 4309650
+        #for HiSeq 4000.  We need to snag this from the .filter file
+        with open(self.filter_file, 'rb') as filt_fh:
 
-    def get_seqs(self, indices, start=0, end=None):
+            filt_header = struct.unpack('<III', filt_fh.read(12))
+            #The first word should be 0, and the version byte is 3, at least
+            #on my test files.
+            assert tuple(filt_header[0:2]) == (0, 3)
+            self.num_clusters = filt_header[2]
 
-        #Collect the sequences as a hash of arrays of strings.  Could use NumPy
+    def get_seqs(self, cluster_indices, start=0, end=None):
+        """Collects the sequences specified by indices as a hash of pairs of seq+flag.  Ie.
+                result = { idx1: ( 'ATCG...', True ), idx2: ('NNNG...', False), ... }
+           indices: An iterable that yields integers.  The order is unimportant.
+           start: starting base.
+           end: ending base.  Note this is as in Python's range(start,end), so
+                start=2 and end=10 will skip the first two bases and yield the
+                next 8.
+        """
+
+        #We could use NumPy
         #for more efficient storage but it seems overkill as the number of reads
         #being extracted is comparatively small.
         #This also ensures that all the indices are ints
-        seq_collector = { int(idx) : [] for idx in indices }
+        seq_collector =  { int(idx) : [] for idx in cluster_indices   }
+        flag_collector = { int(idx) : None for idx in cluster_indices }
+        sorted_keys = sorted(seq_collector.keys())
+
+        #Fail fast if a key is out of range
+        if sorted_keys[-1] >= self.num_clusters:
+            raise IndexError("Requested cluster %i is out of range.  Highest on this tile is %i." %
+                             (sorted_keys[-1], self.num_clusters-1) )
 
         #To build the sequence we have to loop over all the .bcl.gz files in the
         #cycle folders.  These are all named C[num].1 where num is 1-308 (unpadded).
@@ -112,31 +142,49 @@ class Tile(object):
             cycle_dir = os.path.join(self.data_dir, 'C%i.1' % (cycle + 1))
             cycle_file = os.path.join(cycle_dir, '%s.bcl.gz' % self.prefix)
 
-            fh = gzip.open(cycle_file, 'rb')
-            bcl_header = fh.read(4)
+            with gzip.open(cycle_file, 'rb') as fh:
+                bcl_header = fh.read(4)
 
-            #The BCL header should be a fixed length depending on the machine type.
-            #This assertion will fail when I try on output from different machines
-            assert struct.unpack('<I', bcl_header)[0] == 4309650
+                #The BCL header should be a fixed length depending on the machine type.
+                #This assertion checks that it is at least consistent with the filter
+                #file for this tile.
+                assert struct.unpack('<I', bcl_header)[0] == self.num_clusters
 
-            for idx in sorted(seq_collector.keys()):
-                fh.seek(idx + 4)
-                #Is reading bytes 1 at a time slow?  I'd imagine that internal cacheing
-                #negates any need for chunked reads at this level.
-                base_byte, = struct.unpack('B', fh.read(1))
+                for idx in sorted_keys:
+                    fh.seek(idx + 4)
+                    #Is reading bytes 1 at a time slow?  I'd imagine that internal
+                    #cacheing negates any need for chunked reads at this level.
+                    base_byte, = struct.unpack('B', fh.read(1))
 
-                base = 'N'
-                #qual = 0
-                if base_byte:
-                    base = ('A', 'C', 'G', 'T')[(base_byte & 0b11000000) >> 6]
-                    #qual = (base_byte & 0b00111111) << 2 #Manual says "shifted by 2 bits" but I'm unsure
+                    base = 'N'
+                    #qual = 0
+                    if base_byte:
+                        #The two lowest bits give us the base call
+                        base = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
 
-                seq_collector[idx].append(base)
+                        #And the high bits give us the quality, but we're not using
+                        #it here.
+                        #qual = base_byte >> 2
 
-        #TODO
-        #Don't forget the accept/reject flag from the .filter file!
+                    #Collect the base
+                    seq_collector[idx].append(base)
+
+        #Now get the accept/reject flag from the .filter file
+        #This must exist as we opened it earlier when reading self.num_clusters
+        with open(self.filter_file, 'rb') as filt_fh:
+
+            filt_header = filt_fh.read(12)
+            assert tuple(struct.unpack('<III', filt_header)) == (0, 3, self.num_clusters)
+
+            for idx in sorted_keys:
+                filt_fh.seek(idx + 12)
+
+                filt_byte, = struct.unpack('B', filt_fh.read(1))
+
+                flag_collector[idx] = bool( filt_byte & 0b00000001 )
+
 
         #Remap the arrays into strings
         # return dict( idx : (nuc_string, flag) )
-        return { idx : ( ''.join(seq), False ) for idx, seq in seq_collector.items() }
+        return { idx : ( ''.join(seq), flag_collector[idx] ) for idx, seq in seq_collector.items() }
 
