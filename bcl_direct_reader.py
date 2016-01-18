@@ -1,7 +1,4 @@
 #!/usr/bin/python
-
-from __future__ import print_function, division, absolute_import
-
 """
 A module to grab sequence reads direct from the .bcl and .filter files
 outputted by Illumina.  The motivation is that for some QC tasks we want
@@ -19,10 +16,23 @@ This module takes advantage of the fact that the BCL files have a fixed record l
 and uses seek() to jump to the location where the position of interest is stored.
 Unfortunately for GZipped files this does not give much of an advantage, as the file
 must be decompressed internally to perform the seek().
-Therefore for max efficiency one should call get_seqs() just once with all the locations
-you want to extract.
+
+Therefore for max efficiency one should call get_seqs() just once per tile with
+all the locations you want to extract.
+
+Synopsis:
+
+   proj = BCLReader("/your/project/dir")
+   tile = proj.get_tile(1, 1101)
+
+   all_seqs = tile.get_seqs([70657,70658,70659], end=10)
+   seq1, qual1 = all_seqs[70567]
+   seq2, qual2 = all_seqs[70568]
+   seq3, qual3 = all_seqs[70569]
+
 """
 
+from __future__ import print_function, division, absolute_import
 __version__ = 1.0
 __author__ = 'Tim Booth, Edinburgh Genomics <tim.booth@ed.ac.uk>'
 
@@ -33,6 +43,11 @@ import gzip
 class BCLReader(object):
 
     def __init__(self, location="."):
+        """Creates a BCLReader instance that reads from a single run.
+           location: The top level data directory for the run.
+           This should be the one that contains the Data directory and the
+           RunInfo.xml file.
+        """
         #Just check that we can read the expected files at this
         #location.
         basecalls_dir = os.listdir( os.path.join(location, "Data", "Intensities", "BaseCalls") )
@@ -42,7 +57,13 @@ class BCLReader(object):
 
 
     def get_seq(self, lane, tile, cluster_index, start=0, end=None):
-        """This is going to be very inefficient for fetching multiple sequences.
+        """Fetches a single sequence from a specified tile.
+           lane: lane number (see get_tile)
+           tile: tile number (see get_tile)
+           cluster_index: cluster number counting from 0.  To determine
+             this from the standard position co-ordinates you need to
+             parse the .locs file for the run.
+           ** This is going to be very inefficient for fetching multiple sequences. **
            Use get_tile(...).get_seqs([0,2,4,6]) instead.
         """
         tile = self.get_tile(lane, tile)
@@ -53,10 +74,10 @@ class BCLReader(object):
         return result[cluster_index]
 
     def get_tile(self, lane, tile, in_memory=False):
-        """Opens a tile for reading.  You can now use get_seqs() to actually
+        """Opens a tile for reading.  You can then call get_seqs() to actually
            fetch the data.
            Lane and tile should be specified as per the Illumina file structure,
-           so lanes are 1-8 and tiles are eg. [12][12]{01-28} (for HiSeq 4000).
+           so lanes are 1 to 8 and tiles are eg. [12][12]{01-28} (for HiSeq 4000).
         """
         lane_dir = str(lane)
         if lane_dir not in self.lanes:
@@ -73,6 +94,10 @@ class BCLReader(object):
 class Tile(object):
 
     def __init__(self, data_dir, tile):
+        """Fetches sequences from a single tile.
+           You would not normally instantiate these directly.  Create a
+           BCLReader and call get_tile() instead.
+        """
 
         #Find the file prefix I need to be looking at.  Could infer it
         #from the lane number but instead I'll do it by looking for the
