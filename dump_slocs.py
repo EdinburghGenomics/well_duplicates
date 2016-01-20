@@ -26,7 +26,7 @@ def main():
         o.write("##%s\n"%(str(header)))
         clusternumpad = len(str(header[2]))
 
-        for coords in enumerate(yield_coords(f, header)):
+        for coords in enumerate(yield_coords(f)):
             #Write out "%i %i:%i\n"% (clusternum,x,y)
             #But I made it ugly by also interpolating the padding size
             o.write(("%%0%ii %%i:%%i\n"%clusternumpad) % (coords[:1] + coords[1][:]))
@@ -41,7 +41,7 @@ def yield_header(f):
     buf = f.read(12)
     return struct.unpack('<ifI', buf)
 
-def yield_coords(f, header):
+def yield_coords(f):
     #You must have read the header first
     assert f.tell() >= 12
 
