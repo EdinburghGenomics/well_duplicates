@@ -119,9 +119,9 @@ def main():
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
     random_sample = []
-    if args.type == DEF_SEQ:
+    if args.stype == DEF_SEQ:
         random_sample = get_random_array(MAX_CLUSTERS_4000, args.sample_size, args.seed)
-    elif args.type == "hiseq_x":
+    elif args.stype == "hiseq_x":
         random_sample = get_random_array(MAX_CLUSTERS_X, args.sample_size, args.seed)
     else:
         sys.stderr.write(args.type + ": Illigal argument, has to be hiseq_4000 or hiseq_x")
