@@ -8,7 +8,7 @@ return: dictionary of surrounding cluster indexes for n randomly selected wells
 
 import random
 import sys
-import dump_slocs
+from dump_slocs import yield_coords
 import count_optical_duplicates
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -41,7 +41,7 @@ def get_indexes(cluster_x, cluster_y, slocs_fh):
 
     # reset slocs file handle to position 12 (i.e. after the header)
     slocs_fh.seek(12)
-    for coords in enumerate(dump_slocs.yield_coords(slocs_fh)):
+    for coords in enumerate(yield_coords(slocs_fh)):
         (x,y) = coords[1]
         cluster_index = coords[0]
         dist = count_optical_duplicates.get_distance(cluster_x,cluster_y,x,y)
@@ -118,7 +118,7 @@ def main():
 
     for coord in random_sample:
         slocs_fh.seek(12+(coord*8))  # 12 bytes for header, 8 byte per record, counting starts at 0
-        cluster_x, cluster_y = dump_slocs.yield_coords(slocs_fh)
+        cluster_x, cluster_y = yield_coords(slocs_fh)
         l1, l2, l3 = get_indexes(cluster_x, cluster_y, slocs_fh)
         coord_dict[coord] = l1, l2, l3
 
