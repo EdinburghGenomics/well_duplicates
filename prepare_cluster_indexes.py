@@ -8,7 +8,7 @@ return: dictionary of surrounding cluster indexes for n randomly selected wells
 
 import random
 import sys
-from dump_slocs import yield_coords
+#from dump_slocs import yield_coords
 import count_optical_duplicates
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -86,6 +86,24 @@ def _verify_option(args):
         arg_pass = False
     return arg_pass
 
+def yield_coords(f):
+    #You must have read the header first
+    assert f.tell() >= 12
+
+    buf = f.read(8)
+    clusternum = 0
+    while len(buf) == 8:
+        # Each following 8 bytes are a co-ordinate pair as detailed in
+        # https://broadinstitute.github.io/picard/javadoc/picard/picard/illumina/parser/readers/LocsFileReader.html
+        # and
+        # https://www.biostars.org/p/51681/
+        t = struct.unpack('<ff', buf)
+        x = int(t[0] * 10.0 + 1000.5)
+        y = int(t[1] * 10.0 + 1000.5)
+
+        yield (x,y)
+        clusternum += 1
+        buf = f.read(8)
 
 def main():
 
