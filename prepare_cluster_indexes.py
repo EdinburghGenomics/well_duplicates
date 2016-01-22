@@ -137,7 +137,12 @@ def main():
 
     for coord in random_sample:
         slocs_fh.seek(12+(coord*8))  # 12 bytes for header, 8 byte per record, counting starts at 0
-        (cluster_x, cluster_y) = yield_coords(slocs_fh)
+        # should be imported from dump_slocs or suchlike, but I only need the one line here
+        buf = slocs_fh.read(8)
+        t = struct.unpack('=ff', buf)
+        cluster_x = int(t[0] * 10.0 + 1000.5)
+        cluster_y = int(t[1] * 10.0 + 1000.5)
+
         l1, l2, l3 = get_indexes(cluster_x, cluster_y, slocs_fh)
         coord_dict[coord] = l1, l2, l3
 
