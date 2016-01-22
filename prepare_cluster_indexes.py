@@ -117,6 +117,11 @@ def main():
         sys.stderr.write("Non valid arguments: exit")
         sys.exit(1)
 
+    # TODO some logging, but needs a logger implementation
+    sys.stderr.write("sequencer type: %s", args.stype)
+    sys.stderr.write("seed: %s", args.seed)
+    sys.stderr.write("sample size: %s", args.sample_size)
+
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
     random_sample = []
@@ -137,7 +142,7 @@ def main():
 
     for coord in random_sample:
         slocs_fh.seek(12+(coord*8))  # 12 bytes for header, 8 byte per record, counting starts at 0
-        # should be imported from dump_slocs or suchlike, but I only need the one line here
+        # TODO should be imported from dump_slocs or suchlike, but I only need the one line here
         buf = slocs_fh.read(8)
         t = struct.unpack('=ff', buf)
         cluster_x = int(t[0] * 10.0 + 1000.5)
@@ -147,7 +152,8 @@ def main():
         coord_dict[coord] = l1, l2, l3
 
     for key in coord_dict.keys():
-        print key + '\n' + '\n'.join(coord_dict[key]) + '\n'
+        print "%s\n%s", key, '\n'.join(coord_dict[key])
 
+    slocs_fh.close()
 
 main()
