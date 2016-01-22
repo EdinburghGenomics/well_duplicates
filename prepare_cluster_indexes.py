@@ -46,11 +46,11 @@ def get_indexes(cluster_x, cluster_y, slocs_fh):
         (x,y) = coords[1]
         cluster_index = coords[0]
         dist = count_optical_duplicates.get_distance(cluster_x,cluster_y,x,y)
-        if dist <=LEVEL_1_MAX_DIST:
+        if 1 < dist <=LEVEL_1_MAX_DIST:
             l1_index.append(cluster_index)
-        elif dist <= LEVEL_2_MAX_DIST:
+        elif LEVEL_1_MAX_DIST < dist <= LEVEL_2_MAX_DIST:
             l2_index.append(cluster_index)
-        elif dist <= LEVEL_3_MAX_DIST:
+        elif LEVEL_2_MAX_DIST < dist <= LEVEL_3_MAX_DIST:
             l3_index.append(cluster_index)
 
     return l1_index,l2_index,l3_index
@@ -153,9 +153,9 @@ def main():
         coord_dict[coord] = l1, l2, l3
 
     for key in coord_dict.keys():
-        print "%s\n%s\n%s\n%s\n"%(key, ','.join(coord_dict[key][0]),
-                                  ','.join(coord_dict[key][1]),
-                                  ','.join(coord_dict[key][2]))
+        print "%s\n%s\n%s\n%s\n"%(key, coord_dict[key][0],
+                                  coord_dict[key][1],
+                                  coord_dict[key][2])
 
     slocs_fh.close()
 
