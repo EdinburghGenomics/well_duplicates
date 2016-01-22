@@ -142,3 +142,6 @@ def main():
 
     for key in coord_dict.keys():
         print key + '\n' + '\n'.join(coord_dict[key]) + '\n'
+
+
+main()
