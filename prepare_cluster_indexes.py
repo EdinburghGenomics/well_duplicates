@@ -8,6 +8,7 @@ return: dictionary of surrounding cluster indexes for n randomly selected wells
 
 import random
 import sys
+import struct
 #from dump_slocs import yield_coords
 import count_optical_duplicates
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
