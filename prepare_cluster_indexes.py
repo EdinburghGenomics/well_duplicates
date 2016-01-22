@@ -153,7 +153,7 @@ def main():
         coord_dict[coord] = l1, l2, l3
 
     for key in coord_dict.keys():
-        print "%s\n%s\n"%(key, '\n'.join(coord_dict[key]))
+        print "%s\n%s\n"%(key, ','.join(coord_dict[key]))
 
     slocs_fh.close()
 
