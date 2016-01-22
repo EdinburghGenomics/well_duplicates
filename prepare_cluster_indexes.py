@@ -9,10 +9,9 @@ return: dictionary of surrounding cluster indexes for n randomly selected wells
 import random
 import sys
 import struct
-#from dump_slocs import yield_coords
+# from dump_slocs import yield_coords
 import count_optical_duplicates
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-
 
 # maximum pixel distence between wells at a given level, required for edges of the flow cell
 LEVEL_1_MAX_DIST = 22
@@ -35,7 +34,6 @@ def get_random_array(r_max, r_l, seed):
 
 
 def get_indexes(cluster_x, cluster_y, slocs_fh):
-
     l1_index = []
     l2_index = []
     l3_index = []
@@ -43,17 +41,17 @@ def get_indexes(cluster_x, cluster_y, slocs_fh):
     # reset slocs file handle to position 12 (i.e. after the header)
     slocs_fh.seek(12)
     for coords in enumerate(yield_coords(slocs_fh)):
-        (x,y) = coords[1]
+        (x, y) = coords[1]
         cluster_index = coords[0]
-        dist = count_optical_duplicates.get_distance(cluster_x,cluster_y,x,y)
-        if 1 < dist <=LEVEL_1_MAX_DIST:
+        dist = count_optical_duplicates.get_distance(cluster_x, cluster_y, x, y)
+        if 1 < dist <= LEVEL_1_MAX_DIST:
             l1_index.append(cluster_index)
         elif LEVEL_1_MAX_DIST < dist <= LEVEL_2_MAX_DIST:
             l2_index.append(cluster_index)
         elif LEVEL_2_MAX_DIST < dist <= LEVEL_3_MAX_DIST:
             l3_index.append(cluster_index)
 
-    return l1_index,l2_index,l3_index
+    return l1_index, l2_index, l3_index
 
 
 def _prepare_argparser():
@@ -67,15 +65,16 @@ def _prepare_argparser():
     prog_version = "0.1"
     parser = ArgumentParser(description=description, formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("-f", "--slocs", dest="slocs", type=str,
-                         help="The slocs file to analyse.")
+                        help="The slocs file to analyse.")
     parser.add_argument("-t", "--type", dest="stype", type=str, default=DEF_SEQ,
-                         help="the sequencer type, hiseq_4000 or hiseq_x")
+                        help="the sequencer type, hiseq_4000 or hiseq_x")
     parser.add_argument("-s", "--seed", dest="seed", type=int, default=None,
-                         help="Seed for the random read selection")
+                        help="Seed for the random read selection")
     parser.add_argument("-n", "--sample_size", dest="sample_size", type=int, default=DEF_SAMPLE_SIZE,
-                         help="number of n random clusters")
+                        help="number of n random clusters")
 
     return parser.parse_args()
+
 
 def _verify_option(args):
     """Check if the mandatory option are present in the options objects.
@@ -87,8 +86,9 @@ def _verify_option(args):
         arg_pass = False
     return arg_pass
 
+
 def yield_coords(f):
-    #You must have read the header first
+    # You must have read the header first
     assert f.tell() >= 12
 
     buf = f.read(8)
@@ -102,25 +102,24 @@ def yield_coords(f):
         x = int(t[0] * 10.0 + 1000.5)
         y = int(t[1] * 10.0 + 1000.5)
 
-        yield (x,y)
+        yield (x, y)
         clusternum += 1
         buf = f.read(8)
 
-def main():
 
+def main():
     args = _prepare_argparser()
 
     # verify options
     arg_pass = _verify_option(args)
     if not arg_pass:
-
         sys.stderr.write("Non valid arguments: exit")
         sys.exit(1)
 
     # TODO some logging, but needs a logger implementation
-    sys.stderr.write("sequencer type: %s\n"%(args.stype))
-    sys.stderr.write("seed: %s\n"%(args.seed))
-    sys.stderr.write("sample size: %s\n"%(args.sample_size))
+    sys.stderr.write("sequencer type: %s\n" % (args.stype))
+    sys.stderr.write("seed: %s\n" % (args.seed))
+    sys.stderr.write("sample size: %s\n" % (args.sample_size))
 
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
@@ -132,7 +131,7 @@ def main():
     else:
         sys.stderr.write(args.type + ": Illigal argument, has to be hiseq_4000 or hiseq_x\n")
 
-    sys.stderr.write("%s\n"%(random_sample))
+    sys.stderr.write("%s\n" % (random_sample))
     slocs_fh = None
     try:
         slocs_fh = open(args.slocs, 'rb')
@@ -142,7 +141,7 @@ def main():
     coord_dict = {}
 
     for coord in random_sample:
-        slocs_fh.seek(12+(coord*8))  # 12 bytes for header, 8 byte per record, counting starts at 0
+        slocs_fh.seek(12 + (coord * 8))  # 12 bytes for header, 8 byte per record, counting starts at 0
         # TODO should be imported from dump_slocs or suchlike, but I only need the one line here
         buf = slocs_fh.read(8)
         t = struct.unpack('=ff', buf)
@@ -153,10 +152,11 @@ def main():
         coord_dict[coord] = l1, l2, l3
 
     for key in coord_dict.keys():
-        print "%s\n%s\n%s\n%s"%(key, ",".join("'{0}'".format(n) for n in coord_dict[key][0]),
-                                  ",".join("'{0}'".format(n) for n in coord_dict[key][1]),
-                                  ",".join("'{0}'".format(n) for n in coord_dict[key][2]))
+        print "%s\n%s\n%s\n%s" % (key, ",".join(str(n) for n in coord_dict[key][0]),
+                                  ",".join(str(n) for n in coord_dict[key][1]),
+                                  ",".join(str(n) for n in coord_dict[key][2]))
 
     slocs_fh.close()
+
 
 main()
