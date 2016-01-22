@@ -83,7 +83,7 @@ def _verify_option(args):
     arg_pass = True
 
     if not args.slocs:
-        sys.stderr.write("You must specify a read file.")
+        sys.stderr.write("You must specify a read file.\n")
         arg_pass = False
     return arg_pass
 
@@ -118,9 +118,9 @@ def main():
         sys.exit(1)
 
     # TODO some logging, but needs a logger implementation
-    sys.stderr.write("sequencer type: %s"%(args.stype))
-    sys.stderr.write("seed: %s"%(args.seed))
-    sys.stderr.write("sample size: %s"%(args.sample_size))
+    sys.stderr.write("sequencer type: %s\n"%(args.stype))
+    sys.stderr.write("seed: %s\n"%(args.seed))
+    sys.stderr.write("sample size: %s\n"%(args.sample_size))
 
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
@@ -130,9 +130,9 @@ def main():
     elif args.stype == "hiseq_x":
         random_sample = get_random_array(MAX_CLUSTERS_X, args.sample_size, args.seed)
     else:
-        sys.stderr.write(args.type + ": Illigal argument, has to be hiseq_4000 or hiseq_x")
+        sys.stderr.write(args.type + ": Illigal argument, has to be hiseq_4000 or hiseq_x\n")
 
-    sys.stderr.writelines(random_sample)
+    sys.stderr.write("%s\n"%(random_sample))
     slocs_fh = None
     try:
         slocs_fh = open(args.slocs, 'rb')
@@ -153,7 +153,7 @@ def main():
         coord_dict[coord] = l1, l2, l3
 
     for key in coord_dict.keys():
-        print "%s\n%s"%(key, '\n'.join(coord_dict[key]))
+        print "%s\n%s\n"%(key, '\n'.join(coord_dict[key]))
 
     slocs_fh.close()
 
