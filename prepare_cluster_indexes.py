@@ -132,6 +132,7 @@ def main():
     else:
         sys.stderr.write(args.type + ": Illigal argument, has to be hiseq_4000 or hiseq_x")
 
+    sys.stderr.writelines(random_sample)
     slocs_fh = None
     try:
         slocs_fh = open(args.slocs, 'rb')
