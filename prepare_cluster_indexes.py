@@ -118,9 +118,9 @@ def main():
         sys.exit(1)
 
     # TODO some logging, but needs a logger implementation
-    sys.stderr.write("sequencer type: %s", args.stype)
-    sys.stderr.write("seed: %s", args.seed)
-    sys.stderr.write("sample size: %s", args.sample_size)
+    sys.stderr.write("sequencer type: %s"%(args.stype))
+    sys.stderr.write("seed: %s"%(args.seed))
+    sys.stderr.write("sample size: %s"%(args.sample_size))
 
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
@@ -152,7 +152,7 @@ def main():
         coord_dict[coord] = l1, l2, l3
 
     for key in coord_dict.keys():
-        print "%s\n%s", key, '\n'.join(coord_dict[key])
+        print "%s\n%s"%(key, '\n'.join(coord_dict[key]))
 
     slocs_fh.close()
 
