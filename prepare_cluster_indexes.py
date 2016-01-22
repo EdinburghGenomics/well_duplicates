@@ -153,9 +153,9 @@ def main():
         coord_dict[coord] = l1, l2, l3
 
     for key in coord_dict.keys():
-        print "%s\n%s\n%s\n%s"%(key, coord_dict[key][0],
-                                  coord_dict[key][1],
-                                  coord_dict[key][2])
+        print "%s\n%s\n%s\n%s"%(key, ",".join("'{0}'".format(n) for n in coord_dict[key][0]),
+                                  ",".join("'{0}'".format(n) for n in coord_dict[key][1]),
+                                  ",".join("'{0}'".format(n) for n in coord_dict[key][2]))
 
     slocs_fh.close()
 
