@@ -48,7 +48,7 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh):
     slocs_fh.seek(offset)
     for coords in enumerate(yield_coords(slocs_fh)):
         (x, y) = coords[1]
-        cluster_index = coords[0]
+        cluster_index = coords[0] + cluster_coord - 5000
         dist = count_optical_duplicates.get_distance(cluster_x, cluster_y, x, y)
         if 1 < dist <= LEVEL_1_MAX_DIST:
             l1_index.append(cluster_index)
