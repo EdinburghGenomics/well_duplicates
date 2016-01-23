@@ -43,7 +43,7 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh):
     l3_index = []
 
     #reset slocs file handle to position 12 or 5000 lines before cluster_coord (TODO max distance for hiseq 4000, need to check for X )(i.e. after the header)
-    offset = max([12, (cluster_coord - 5000) * 8])
+    offset = max([12, 12 + (cluster_coord - 5000) * 8])
     sys.stderr.write("%s\n"%offset)
     slocs_fh.seek(offset)
     for coords in enumerate(yield_coords(slocs_fh)):
