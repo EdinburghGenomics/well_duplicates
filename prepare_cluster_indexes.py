@@ -9,8 +9,8 @@ return: dictionary of surrounding cluster indexes for n randomly selected wells
 import random
 import sys
 import struct
+import math
 # from dump_slocs import yield_coords
-import count_optical_duplicates
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 # maximum pixel distence between wells at a given level, required for edges of the flow cell
@@ -29,8 +29,14 @@ MAX_CLUSTERS_X = 6470949
 def get_random_array(r_max, r_l, seed):
     if seed:
         random.seed(seed)
-    ra = [random.randrange(0, r_max) for i in range(r_l)]
+    ra = random.sample(range(r_max),r_l)
+    #ra = [random.randrange(0, r_max) for i in range(r_l)]
     return ra
+
+def get_distance(x1, y1, x2, y2):
+
+    dist = math.sqrt((x2-x1)**2+(y2-y1)**2)
+    return dist
 
 
 def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh):
@@ -49,7 +55,7 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh):
     for coords in enumerate(yield_coords(slocs_fh)):
         (x, y) = coords[1]
         cluster_index = coords[0] + cluster_coord - 5000
-        dist = count_optical_duplicates.get_distance(cluster_x, cluster_y, x, y)
+        dist = get_distance(cluster_x, cluster_y, x, y)
         if 1 < dist <= LEVEL_1_MAX_DIST:
             l1_index.append(cluster_index)
         elif LEVEL_1_MAX_DIST < dist <= LEVEL_2_MAX_DIST:
@@ -156,10 +162,12 @@ def main():
         cluster_y = int(t[1] * 10.0 + 1000.5)
 
         l1, l2, l3 = get_indexes(coord, cluster_x, cluster_y, slocs_fh)
+        assert coord not in coord_dict
         coord_dict[coord] = l1, l2, l3
 
     for key in coord_dict.keys():
-        print "%s\n%s\n%s\n%s" % (key, ",".join(str(n) for n in coord_dict[key][0]),
+        print "%s\n%s\n%s\n%s" % (key,
+                                  ",".join(str(n) for n in coord_dict[key][0]),
                                   ",".join(str(n) for n in coord_dict[key][1]),
                                   ",".join(str(n) for n in coord_dict[key][2]))
 
