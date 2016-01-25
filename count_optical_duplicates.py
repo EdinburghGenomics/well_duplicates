@@ -1,65 +1,69 @@
 #!/usr/bin/env python
 
-from optparse import OptionParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import sys
 import logging
-import os
-from itertools import islice
 import Levenshtein
+import bcl_direct_reader
+from target import load_targets
 
-
-def parse_coord_file(coord_file):
-    try:
-        coord_fh = open(coord_file, 'r')
-    except IndexError:
-        exit(1)
-
-    coords = {}
-    while True:
-        coord_record = list(islice(coord_fh, 4))
-        coords[coord_record[0]] = coord_record[1], coord_record[2], coord_record[3]
-    coord_fh.close()
-
-def sort_coords(coords):
-
-    # unravel coords into one sorted list
-    coord_list = []
-    for key in coords:
-        coord_list.append(key)
-        coord_list.extend(coords[key][0])
-        coord_list.extend(coords[key][1])
-        coord_list.extend(coords[key][2])
-
-    return coord_list.sort()
 
 def get_edit_distance(str1, str2):
-
     return Levenshtein.distance(str1, str2)
 
 
 def get_hamming_distance(str1, str2):
-
     return Levenshtein.hamming(str1, str2)
 
 
 def main():
-
-    sys.stderr.write("%s\n"%(str(sys.maxint)))
     # Setup options
-    optparser = _prepare_optparser()
-    (options, args) = optparser.parse_args()
+    optparser = _prepare_argparser()
+    args = optparser.parse_args()
     # verify options
-    arg_pass = _verify_option(options)
+    arg_pass = _verify_option(args)
     if not arg_pass:
-        logging.warning(optparser.get_usage())
         logging.critical("Non valid arguments: exit")
         sys.exit(1)
 
+    lanes = range(1,8)
+    if args.lane:
+        lanes = [args.lane]
+
+    tiles = []
+    if args.tile:
+        tiles = [args.tile_id]
+    else:
+        for swath in [11,12,21,22]:
+            for tile in range(1,28):
+                tile_id = "%s%s"%(swath, tile)
+                tiles.append(tile_id)
+
+    targets = load_targets(args.coord_file)
+    bcl_reader = bcl_direct_reader.BCLReader(args.run)
+
+    for lane in lanes:
+        for tile in tiles:
+
+            tile_bcl = bcl_reader.get_tile(lane, tile)
+
+            seq_obj = tile_bcl.get_seqs(targets.get_all_indices())
+
+            for target in targets.get_all_targets():
+                center = target.get_centre()
+                center_seq = seq_obj[center]
+                for level in range(1,args.level):
+                    l_dupl = []
+                    for well_index in target.get_indices(1):
+                        well_seq = seq_obj[well_index]
+                        dist = get_edit_distance(center_seq,well_seq)
+                        if dist <= args.edit_distance:
+                            l_dupl.append(1)
+                        else:
+                            l_dupl.append(0)
 
 
-
-
-def _prepare_optparser():
+def _prepare_argparser():
     """Prepare optparser object. New options will be added in this
     function first.
     """
@@ -70,18 +74,23 @@ def _prepare_optparser():
     """
 
     prog_version = "0.1"
-    optparser = OptionParser(version=prog_version, description=description, usage=usage, add_help_option=False)
-    optparser.add_option("-h", "--help", action="help", help="show this help message and exit.")
-    optparser.add_option("-f", "--coord_file", dest="coord_file", type="string",
+    parser = ArgumentParser(description=description, formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-f", "--coord_file", dest="coord_file", type=str,
                          help="The file containing the random sample per tile.")
-    optparser.add_option("-e", "--edit_distance", dest="edit_distance", type="int",
+    parser.add_argument("-e", "--edit_distance", dest="edit_distance", type=int,
                          help="max edit distance between two reads to count as duplicate")
-    optparser.add_option("-n", "--sample_size", dest="sample_size", type="int", default=10000,
+    parser.add_argument("-n", "--sample_size", dest="sample_size", type=int, default=2500,
                          help="number of reads to be tested for optical duplicates (max number of prepared clusters is 10000 at the moment)")
-    optparser.add_option("-l", "--level", dest="level", type="int", default=3,
+    parser.add_argument("-l", "--level", dest="level", type=int, default=3,
                          help="levels around central spot to test, max = 3")
+    parser.add_argument("-r", "--run", dest="run", type=str,
+                         help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
+    parser.add_argument("-t", "--tile", dest="tile_id", type=str,
+                         help="specific tile on a lane to analyse, four digits, follow Illumina tile numbering")
+    parser.add_argument("-i", "--lane", dest="lane", type=int,
+                         help="specific lane to analyse, 1-8")
 
-    return optparser
+    return parser
 
 
 def _verify_option(options):
@@ -91,6 +100,9 @@ def _verify_option(options):
 
     if not options.coord_file:
         logging.error("You must specify a coordinates file.")
+        arg_pass = False
+    if not options.run:
+        logging.error("You must specify a run folder")
         arg_pass = False
     return arg_pass
 
