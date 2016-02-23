@@ -20,7 +20,7 @@ def get_hamming_distance(str1, str2):
 
 
 def output_writer(lane, tile_dupl, levels):
-    sys.stdout.write(lane)
+    sys.stdout.write("Current lane: %s\n"%lane)
     l_tally = [0] * (levels + 1)
     l_length = [0] * (levels + 1)
 
@@ -35,7 +35,7 @@ def output_writer(lane, tile_dupl, levels):
             sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
     sys.stdout.write("Lane %s\n" % lane)
 
-    for level in levels:
+    for level in range(1,levels):
         perc_dup = l_tally[level] / l_length[level] * 100
         sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
 
@@ -68,7 +68,7 @@ def main():
                 tile_id = "%s%s" % (swath, tile)
                 tiles.append(tile_id)
 
-    targets = load_targets(args.coord_file, args.level)
+    targets = load_targets(args.coord_file, 4)
     bcl_reader = bcl_direct_reader.BCLReader(args.run)
 
     for lane in lanes:
@@ -86,11 +86,14 @@ def main():
                 if target_counter >= args.sample_size:
                     break
                 center = target.get_centre()
+                sys.stderr.write("Center: %s\n"%center)
                 center_seq = seq_obj[center]
+                sys.stderr.write("Center seq: %s\n"%center_seq)
                 for level in range(1, args.level):
                     l_dupl = []
                     for well_index in target.get_indices(level):
                         well_seq = seq_obj[well_index]
+                        sys.stderr.write("well seq: %s\n"%well_seq)
                         dist = get_edit_distance(center_seq, well_seq)
                         if dist <= args.edit_distance:
                             l_dupl.append(1)
@@ -115,7 +118,7 @@ def _prepare_argparser():
     parser = ArgumentParser(description=description, formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("-f", "--coord_file", dest="coord_file", type=str,
                         help="The file containing the random sample per tile.")
-    parser.add_argument("-e", "--edit_distance", dest="edit_distance", type=int,
+    parser.add_argument("-e", "--edit_distance", dest="edit_distance", type=int, default=2,
                         help="max edit distance between two reads to count as duplicate")
     parser.add_argument("-n", "--sample_size", dest="sample_size", type=int, default=2500,
                         help="number of reads to be tested for optical duplicates (max number of prepared clusters is 10000 at the moment)")
