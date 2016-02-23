@@ -28,7 +28,20 @@ class TestTargetReader(unittest.TestCase):
 
     #Load the targets each time as the file is so small
     def setUp(self):
-        self.all_targets = load_targets(TEST_FILE, 4)
+        self.all_targets = load_targets(TEST_FILE)
+
+    def test_load_subset(self):
+        sub_targets = load_targets(TEST_FILE, 2)
+
+        self.assertEquals(sub_targets.levels, 2)
+
+    def test_num_levels(self):
+        all_targets = self.all_targets
+
+        #I know there are 4 levels in the test file
+        self.assertEquals(all_targets.levels, 4)
+
+        self.assertEquals(all_targets.get_target_by_centre(196654).get_levels(), 4)
 
     def test_num_targets(self):
         all_targets = self.all_targets
@@ -72,7 +85,11 @@ class TestTargetReader(unittest.TestCase):
 
         self.assertRaises(Exception, all_targets.add_target, [(1, 2), (3, 4)])
 
+        #This should complain about the number of levels
+        self.assertRaises(AssertionError, all_targets.add_target, [(111,), (112, 113, 114, 115)])
+
         #This should work, but only once
-        all_targets.add_target( [(111,), (112, 113, 114, 115)] )
-        self.assertRaises(Exception, all_targets.add_target, [(111,), (112, 113, 114, 115)])
+        sub_targets = load_targets(TEST_FILE, 2)
+        sub_targets.add_target( [(111,), (112, 113, 114, 115)] )
+        self.assertRaises(Exception, sub_targets.add_target, [(111,), (112, 113, 114, 115)])
 

@@ -1,40 +1,52 @@
 #!python
 from __future__ import print_function, division, absolute_import
 
-def load_targets(filename, levels):
+from itertools import chain
+
+def load_targets(filename, levels=None):
+    """Loads the target coordinates from a CSV file.  This function will now infer
+       the number of levels represented in the file, but you can opt to load just a
+       subset.
+        filename: File to open
+        levels: Number of levels to load, else all levels in the file will be loaded
+    """
 
     all_targets = AllTargets()
 
     with open(filename, 'r') as coord_fh:
 
-        #There are various smart-arse ways to read a file N lines
-        #at a time, but I'll just do it the obvious dumb way.
-        while True:
+        #This used to read the file N lines at a time but now it just keeps reading until
+        #it finds a single number which it assumes must be the centre of a new target.
+        targ_lines = None
 
-            targ_lines = []
-            for l in range(levels):
-                aline = coord_fh.readline().rstrip()
+        #Silly way to get all the lines in a file followed by a blank
+        for aline in chain(map(lambda x: x.rstrip(), coord_fh), ['']):
 
-                if aline == '' and len(targ_lines) == 0:
-                    #EOF - we're done
-                    return all_targets
-                elif aline == '':
-                    raise Exception("Found blank line or EOF in the middle of a record")
+            if ',' not in aline:
+                #We've either hit EOF or the start of the next record.
+                if targ_lines:
+                    all_targets.add_target([
+                            map(int,x.split(',')) for x in targ_lines[:levels]
+                        ])
 
-                targ_lines.append(aline)
+                targ_lines = []
 
-            all_targets.add_target([ map(int,x.split(',')) for x in targ_lines])
+            targ_lines.append(aline)
 
-    #This function returns an all_targets object, but it only exits in the middle!
-
+    return all_targets
 
 class AllTargets:
+    """A holder for a bunch of Target objects.  Normally produced by a
+       call to load_targets.
+    """
 
     def __init__(self):
         self._target_dict = dict()
 
         # This will contain [ index : [ target, target, ... ] ]
         self._reverse_lookup = dict()
+
+        self.levels = None
 
     def get_all_targets(self):
 
@@ -50,6 +62,12 @@ class AllTargets:
 
         #You shouldn't add the same target twice
         assert new_target.get_centre() not in self._target_dict
+
+        #All targets should be the same size
+        if self.levels is None:
+            self.levels = new_target.get_levels()
+        else:
+            assert self.levels == new_target.get_levels()
 
         self._target_dict[new_target.get_centre()] = new_target
 
@@ -80,9 +98,10 @@ class AllTargets:
 
 class Target:
     def __init__(self, coords):
-        """Parse the data which is in the format of ...
+        """Parse the data which is in the format of
+           [[n],[n,n,...],[n,n,n,n,n,...]]
         """
-        assert len(coords[0]) == 1, str(coords)
+        assert len(coords[0]) == 1, "Centre of target must be a single int, not " + str(coords)
         #centre = coords[0][0]
 
         self.coords = coords
@@ -98,6 +117,11 @@ class Target:
     def get_centre(self):
 
         return self.get_indices(0)[0]
+
+    def get_levels(self):
+        """Get the target size
+        """
+        return len(self.coords)
 
     def get_level_from_index(self, index):
 
