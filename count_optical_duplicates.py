@@ -87,12 +87,12 @@ def main():
                     break
                 center = target.get_centre()
                 sys.stderr.write("Center: %s\n"%center)
-                center_seq = seq_obj[center]
+                center_seq = seq_obj[center][0]
                 sys.stderr.write("Center seq: %s\n"%center_seq)
                 for level in range(1, args.level):
                     l_dupl = []
                     for well_index in target.get_indices(level):
-                        well_seq = seq_obj[well_index]
+                        well_seq = seq_obj[well_index][0]
                         sys.stderr.write("well seq: %s\n"%well_seq)
                         dist = get_edit_distance(center_seq, well_seq)
                         if dist <= args.edit_distance:
