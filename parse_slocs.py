@@ -7,6 +7,7 @@ import math
 fn = 'X_s.locs'
 f= open(fn, 'rb')
 o = open('X_s.locs.txt','w')
+
 try:
     buf = f.read(12)
     o.write("##%s\n"%(str(struct.unpack('=ifI', buf))))
@@ -15,8 +16,10 @@ try:
         t = struct.unpack('=ff', buf)
         x = int(t[0] * 10.0 + 1000.5)
         y = int(t[1] * 10.0 + 1000.5)
-        o.write("%s\t%s\n"%(x,y))
+        yield (x,y)
         buf = f.read(8)
 finally:
     o.close()
     f.close()
+
+def yield_coords(o):

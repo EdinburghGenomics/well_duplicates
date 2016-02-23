@@ -19,9 +19,10 @@ LEVEL_2_MAX_DIST = 42
 LEVEL_3_MAX_DIST = 62
 
 DEF_SEED = 13
-DEF_SEQ = "hiseq_4000"
+DEF_SEQ = HIGHSEQ_4000 = "hiseq_4000"
+HIGHSEQ_X = "highseq_x"
 
-DEF_SAMPLE_SIZE = 10000
+DEF_SAMPLE_SIZE = 2500
 MAX_CLUSTERS_4000 = 4312395
 MAX_CLUSTERS_X = 6470949
 
@@ -30,7 +31,6 @@ def get_random_array(r_max, r_l, seed):
     if seed:
         random.seed(seed)
     ra = random.sample(range(r_max),r_l)
-    #ra = [random.randrange(0, r_max) for i in range(r_l)]
     return ra
 
 def get_distance(x1, y1, x2, y2):
@@ -139,7 +139,7 @@ def main():
     random_sample = []
     if args.stype == DEF_SEQ:
         random_sample = get_random_array(MAX_CLUSTERS_4000, args.sample_size, args.seed)
-    elif args.stype == "hiseq_x":
+    elif args.stype == HISEQ_X:
         random_sample = get_random_array(MAX_CLUSTERS_X, args.sample_size, args.seed)
     else:
         sys.stderr.write(args.type + ": Illigal argument, has to be hiseq_4000 or hiseq_x\n")

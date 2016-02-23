@@ -7,6 +7,8 @@ import Levenshtein
 import bcl_direct_reader
 from target import load_targets
 
+DEF_SEQ = HIGHSEQ_4000 = "hiseq_4000"
+HIGHSEQ_X = "hiseq_x"
 
 def get_edit_distance(str1, str2):
     return Levenshtein.distance(str1, str2)
@@ -14,6 +16,27 @@ def get_edit_distance(str1, str2):
 
 def get_hamming_distance(str1, str2):
     return Levenshtein.hamming(str1, str2)
+
+
+def output_writer(lane, tile_dupl, levels):
+    sys.stdout.write(lane)
+    l_tally = [0] * (levels+1)
+    l_length = [0] * (levels+1)
+
+    for tile in tile_dupl.keys():
+        sys.stdout.write("Tile %s\n"%tile)
+        for level in range(1,levels):
+            t_tally = tile_dupl[tile][level]['tally']
+            l_tally[level] += t_tally
+            t_length = tile_dupl[tile][level]['length']
+            l_length[level] += t_length
+            perc_dup = t_tally / t_length * 100
+            sys.stdout.write("Level %s: %s\n"%(level,perc_dup))
+    sys.stdout.write("Lane %s\n"%lane)
+
+    for level in levels:
+        perc_dup = l_tally[level]/ l_length[level] * 100
+        sys.stdout.write("Level %s: %s\n"%(level,perc_dup))
 
 
 def main():
@@ -35,7 +58,7 @@ def main():
         tiles = [args.tile_id]
     else:
         for swath in [11,12,21,22]:
-            for tile in range(1,28):
+            for tile in range(1,28): # should be 24 for hiseq_X
                 tile_id = "%s%s"%(swath, tile)
                 tiles.append(tile_id)
 
@@ -43,24 +66,31 @@ def main():
     bcl_reader = bcl_direct_reader.BCLReader(args.run)
 
     for lane in lanes:
+        # dict[tile]
+        tile_dupl = {}
         for tile in tiles:
-
             tile_bcl = bcl_reader.get_tile(lane, tile)
-
             seq_obj = tile_bcl.get_seqs(targets.get_all_indices())
+
+            #Initialise tally and length counters for this tile
+            tile_dupl[tile] = [ {'tally':0, 'length':0} for level in range(0,args.level) ]
 
             for target in targets.get_all_targets():
                 center = target.get_centre()
                 center_seq = seq_obj[center]
                 for level in range(1,args.level):
                     l_dupl = []
-                    for well_index in target.get_indices(1):
+                    for well_index in target.get_indices(level):
                         well_seq = seq_obj[well_index]
                         dist = get_edit_distance(center_seq,well_seq)
                         if dist <= args.edit_distance:
                             l_dupl.append(1)
                         else:
                             l_dupl.append(0)
+                    tile_dupl[tile][level]['tally'] += sum(l_dupl)
+                    tile_dupl[tile][level]['length'] += len(l_dupl)
+
+        output_writer(lane, tile_dupl,args.level)
 
 
 def _prepare_argparser():
@@ -83,6 +113,8 @@ def _prepare_argparser():
                          help="number of reads to be tested for optical duplicates (max number of prepared clusters is 10000 at the moment)")
     parser.add_argument("-l", "--level", dest="level", type=int, default=3,
                          help="levels around central spot to test, max = 3")
+    parser.add_argument("-s", "--stype", dest="s_type", type=str,
+                         help="Sequencer model, must be one of highseq_4000 or highseq_x")
     parser.add_argument("-r", "--run", dest="run", type=str,
                          help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
     parser.add_argument("-t", "--tile", dest="tile_id", type=str,
@@ -103,6 +135,9 @@ def _verify_option(options):
         arg_pass = False
     if not options.run:
         logging.error("You must specify a run folder")
+        arg_pass = False
+    if (not options.stype) or (options.stype not in [HIGHSEQ_4000, HIGHSEQ_X]):
+        logging.error("You must specify a sequencer model")
         arg_pass = False
     return arg_pass
 
