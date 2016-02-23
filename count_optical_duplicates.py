@@ -54,11 +54,16 @@ def main():
         lanes = [args.lane]
 
     tiles = []
+    max_tile = 0
+    if args.stype == HIGHSEQ_4000:
+        max_tile = 28
+    else:
+        max_tile = 24
     if args.tile:
         tiles = [args.tile_id]
     else:
         for swath in [11,12,21,22]:
-            for tile in range(1,28): # should be 24 for hiseq_X
+            for tile in range(1,max_tile): # should be 24 for hiseq_X
                 tile_id = "%s%s"%(swath, tile)
                 tiles.append(tile_id)
 
@@ -113,7 +118,7 @@ def _prepare_argparser():
                          help="number of reads to be tested for optical duplicates (max number of prepared clusters is 10000 at the moment)")
     parser.add_argument("-l", "--level", dest="level", type=int, default=3,
                          help="levels around central spot to test, max = 3")
-    parser.add_argument("-s", "--stype", dest="s_type", type=str,
+    parser.add_argument("-s", "--stype", dest="stype", type=str,
                          help="Sequencer model, must be one of highseq_4000 or highseq_x")
     parser.add_argument("-r", "--run", dest="run", type=str,
                          help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
