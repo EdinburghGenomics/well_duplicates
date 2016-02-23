@@ -59,7 +59,7 @@ def main():
         max_tile = 28
     else:
         max_tile = 24
-    if args.tile:
+    if args.tile_id:
         tiles = [args.tile_id]
     else:
         for swath in [11,12,21,22]:
@@ -122,7 +122,7 @@ def _prepare_argparser():
                          help="Sequencer model, must be one of highseq_4000 or highseq_x")
     parser.add_argument("-r", "--run", dest="run", type=str,
                          help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
-    parser.add_argument("-t", "--tile", dest="tile", type=str,
+    parser.add_argument("-t", "--tile", dest="tile_id", type=str,
                          help="specific tile on a lane to analyse, four digits, follow Illumina tile numbering")
     parser.add_argument("-i", "--lane", dest="lane", type=int,
                          help="specific lane to analyse, 1-8")
