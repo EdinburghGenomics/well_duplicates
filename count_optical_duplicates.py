@@ -68,7 +68,7 @@ def main():
                 tile_id = "%s%s" % (swath, tile)
                 tiles.append(tile_id)
 
-    targets = load_targets(args.coord_file, 4)
+    targets = load_targets(args.coord_file, args.level)
     bcl_reader = bcl_direct_reader.BCLReader(args.run)
 
     for lane in lanes:
