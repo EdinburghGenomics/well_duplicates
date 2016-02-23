@@ -10,6 +10,7 @@ from target import load_targets
 DEF_SEQ = HIGHSEQ_4000 = "hiseq_4000"
 HIGHSEQ_X = "hiseq_x"
 
+
 def get_edit_distance(str1, str2):
     return Levenshtein.distance(str1, str2)
 
@@ -20,23 +21,23 @@ def get_hamming_distance(str1, str2):
 
 def output_writer(lane, tile_dupl, levels):
     sys.stdout.write(lane)
-    l_tally = [0] * (levels+1)
-    l_length = [0] * (levels+1)
+    l_tally = [0] * (levels + 1)
+    l_length = [0] * (levels + 1)
 
     for tile in tile_dupl.keys():
-        sys.stdout.write("Tile %s\n"%tile)
-        for level in range(1,levels):
+        sys.stdout.write("Tile %s\n" % tile)
+        for level in range(1, levels):
             t_tally = tile_dupl[tile][level]['tally']
             l_tally[level] += t_tally
             t_length = tile_dupl[tile][level]['length']
             l_length[level] += t_length
             perc_dup = t_tally / t_length * 100
-            sys.stdout.write("Level %s: %s\n"%(level,perc_dup))
-    sys.stdout.write("Lane %s\n"%lane)
+            sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
+    sys.stdout.write("Lane %s\n" % lane)
 
     for level in levels:
-        perc_dup = l_tally[level]/ l_length[level] * 100
-        sys.stdout.write("Level %s: %s\n"%(level,perc_dup))
+        perc_dup = l_tally[level] / l_length[level] * 100
+        sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
 
 
 def main():
@@ -49,7 +50,7 @@ def main():
         logging.critical("Non valid arguments: exit")
         sys.exit(1)
 
-    lanes = range(1,8)
+    lanes = range(1, 8)
     if args.lane:
         lanes = [args.lane]
 
@@ -62,9 +63,9 @@ def main():
     if args.tile_id:
         tiles = [args.tile_id]
     else:
-        for swath in [11,12,21,22]:
-            for tile in range(1,max_tile): # should be 24 for hiseq_X
-                tile_id = "%s%s"%(swath, tile)
+        for swath in [11, 12, 21, 22]:
+            for tile in range(1, max_tile):  # should be 24 for hiseq_X
+                tile_id = "%s%s" % (swath, tile)
                 tiles.append(tile_id)
 
     targets = load_targets(args.coord_file, args.level)
@@ -77,25 +78,27 @@ def main():
             tile_bcl = bcl_reader.get_tile(lane, tile)
             seq_obj = tile_bcl.get_seqs(targets.get_all_indices())
 
-            #Initialise tally and length counters for this tile
-            tile_dupl[tile] = [ {'tally':0, 'length':0} for level in range(0,args.level) ]
-
+            # Initialise tally and length counters for this tile
+            tile_dupl[tile] = [{'tally': 0, 'length': 0} for level in range(0, args.level)]
+            target_counter = 0
             for target in targets.get_all_targets():
+                target_counter += 1
+                if target_counter >= args.sample_size:
+                    break
                 center = target.get_centre()
                 center_seq = seq_obj[center]
-                for level in range(1,args.level):
+                for level in range(1, args.level):
                     l_dupl = []
                     for well_index in target.get_indices(level):
                         well_seq = seq_obj[well_index]
-                        dist = get_edit_distance(center_seq,well_seq)
+                        dist = get_edit_distance(center_seq, well_seq)
                         if dist <= args.edit_distance:
                             l_dupl.append(1)
                         else:
                             l_dupl.append(0)
                     tile_dupl[tile][level]['tally'] += sum(l_dupl)
                     tile_dupl[tile][level]['length'] += len(l_dupl)
-
-        output_writer(lane, tile_dupl,args.level)
+        output_writer(lane, tile_dupl, args.level)
 
 
 def _prepare_argparser():
@@ -111,21 +114,21 @@ def _prepare_argparser():
     prog_version = "0.1"
     parser = ArgumentParser(description=description, formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("-f", "--coord_file", dest="coord_file", type=str,
-                         help="The file containing the random sample per tile.")
+                        help="The file containing the random sample per tile.")
     parser.add_argument("-e", "--edit_distance", dest="edit_distance", type=int,
-                         help="max edit distance between two reads to count as duplicate")
+                        help="max edit distance between two reads to count as duplicate")
     parser.add_argument("-n", "--sample_size", dest="sample_size", type=int, default=2500,
-                         help="number of reads to be tested for optical duplicates (max number of prepared clusters is 10000 at the moment)")
+                        help="number of reads to be tested for optical duplicates (max number of prepared clusters is 10000 at the moment)")
     parser.add_argument("-l", "--level", dest="level", type=int, default=3,
-                         help="levels around central spot to test, max = 3")
+                        help="levels around central spot to test, max = 3")
     parser.add_argument("-s", "--stype", dest="stype", type=str,
-                         help="Sequencer model, must be one of highseq_4000 or highseq_x")
+                        help="Sequencer model, must be one of highseq_4000 or highseq_x")
     parser.add_argument("-r", "--run", dest="run", type=str,
-                         help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
+                        help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
     parser.add_argument("-t", "--tile", dest="tile_id", type=str,
-                         help="specific tile on a lane to analyse, four digits, follow Illumina tile numbering")
+                        help="specific tile on a lane to analyse, four digits, follow Illumina tile numbering")
     parser.add_argument("-i", "--lane", dest="lane", type=int,
-                         help="specific lane to analyse, 1-8")
+                        help="specific lane to analyse, 1-8")
 
     return parser
 

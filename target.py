@@ -82,7 +82,7 @@ class Target:
     def __init__(self, coords):
         """Parse the data which is in the format of ...
         """
-        assert len(coords[0]) == 1
+        assert len(coords[0]) == 1, str(coords)
         #centre = coords[0][0]
 
         self.coords = coords
