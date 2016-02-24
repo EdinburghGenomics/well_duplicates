@@ -113,8 +113,11 @@ def main():
                             sys.stderr.write("edit distance: %s\n"%dist)
                         else:
                             l_dupl.append(0)
-                    tile_dupl[tile][level]['tally'] += sum(l_dupl)
-                    tile_dupl[tile][level]['length'] += len(l_dupl)
+                    if sum(l_dupl)>=1:
+                        tile_dupl[tile][level]['tally'] += 1
+                    tile_dupl[tile][level]['length'] += 1
+                    #tile_dupl[tile][level]['tally'] += sum(l_dupl)
+                    #tile_dupl[tile][level]['length'] += len(l_dupl)
             sys.stderr.write(str(tile_dupl))
         output_writer(lane, tile_dupl, args.level)
 
