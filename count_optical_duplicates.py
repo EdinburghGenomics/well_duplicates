@@ -75,7 +75,7 @@ def main():
     else:
         for swath in [11, 12, 21, 22]:
             for tile in range(1, max_tile):  # should be 24 for hiseq_X
-                tile_id = "%s%s" % (swath, tile)
+                tile_id = "%s%02d" % (swath, tile)
                 tiles.append(tile_id)
 
     targets = load_targets(args.coord_file, args.level+1)
