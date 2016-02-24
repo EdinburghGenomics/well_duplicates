@@ -155,6 +155,10 @@ class Tile(object):
             raise IndexError("Requested cluster %i is out of range.  Highest on this tile is %i." %
                              (sorted_keys[-1], self.num_clusters-1) )
 
+        #And just to be sure, no key should be negative
+        if sorted_keys[0] < 0:
+            raise IndexError("Requested cluster %i is a negative number." % sorted_keys[0])
+
         #To build the sequence we have to loop over all the .bcl.gz files in the
         #cycle folders.  These are all named C[num].1 where num is 1-308 (unpadded).
         #The first base of the read will not be in C1.1 because there is an adapter,
