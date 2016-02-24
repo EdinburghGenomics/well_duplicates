@@ -26,7 +26,7 @@ def output_writer(lane, tile_dupl, levels):
 
     for tile in tile_dupl.keys():
         sys.stdout.write("Tile %s\n" % tile)
-        for level in range(1, levels):
+        for level in range(1, levels+1):
             t_tally = tile_dupl[tile][level]['tally']
             l_tally[level] += t_tally
             t_length = tile_dupl[tile][level]['length']
@@ -35,7 +35,7 @@ def output_writer(lane, tile_dupl, levels):
             sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
     sys.stdout.write("Lane %s\n" % lane)
 
-    for level in range(1,levels):
+    for level in range(1,levels+1):
         perc_dup = l_tally[level] / l_length[level] * 100
         sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
 
@@ -68,7 +68,7 @@ def main():
                 tile_id = "%s%s" % (swath, tile)
                 tiles.append(tile_id)
 
-    targets = load_targets(args.coord_file, 4)
+    targets = load_targets(args.coord_file, args.level)
     bcl_reader = bcl_direct_reader.BCLReader(args.run)
 
     for lane in lanes:
@@ -87,12 +87,12 @@ def main():
                     break
                 center = target.get_centre()
                 sys.stderr.write("Center: %s\n"%center)
-                center_seq = seq_obj[center]
+                center_seq = seq_obj[center][0]
                 sys.stderr.write("Center seq: %s\n"%center_seq)
-                for level in range(1, args.level):
+                for level in range(1, args.level+1):
                     l_dupl = []
                     for well_index in target.get_indices(level):
-                        well_seq = seq_obj[well_index]
+                        well_seq = seq_obj[well_index][0]
                         sys.stderr.write("well seq: %s\n"%well_seq)
                         dist = get_edit_distance(center_seq, well_seq)
                         if dist <= args.edit_distance:
