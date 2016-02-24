@@ -91,6 +91,11 @@ def main():
                     break
                 center = target.get_centre()
                 sys.stderr.write("Center: %s\n"%center)
+
+                # if the center sequence does not pass the pass filter we don't assess edit distance
+                # as large number of Ns compared to other reads with large number of Ns results in small edit distance
+                if not seq_obj[center][1]:
+                    continue
                 center_seq = seq_obj[center][0]
                 sys.stderr.write("Center seq: %s\n"%center_seq)
                 for level in range(1, args.level+1):
