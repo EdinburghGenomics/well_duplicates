@@ -139,7 +139,7 @@ def main():
     buf = slocs_fh.read(12)
     header = struct.unpack('=ifI', buf)
     MAX_CLUSTERS = int(header[2])
-    sys.stderr.write("Maximum number of cluster according to s.locs: %s"%MAX_CLUSTERS)
+    sys.stderr.write("Maximum number of cluster according to s.locs: %s\n"%MAX_CLUSTERS)
 
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
