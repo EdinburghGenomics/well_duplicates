@@ -68,7 +68,7 @@ def main():
                 tile_id = "%s%s" % (swath, tile)
                 tiles.append(tile_id)
 
-    targets = load_targets(args.coord_file, args.level)
+    targets = load_targets(args.coord_file, args.level+1)
     bcl_reader = bcl_direct_reader.BCLReader(args.run)
 
     for lane in lanes:
@@ -79,7 +79,7 @@ def main():
             seq_obj = tile_bcl.get_seqs(targets.get_all_indices())
 
             # Initialise tally and length counters for this tile
-            tile_dupl[tile] = [{'tally': 0, 'length': 0} for level in range(0, args.level)]
+            tile_dupl[tile] = [{'tally': 0, 'length': 0} for level in range(0, args.level+1)]
             target_counter = 0
             for target in targets.get_all_targets():
                 target_counter += 1
@@ -91,10 +91,12 @@ def main():
                 sys.stderr.write("Center seq: %s\n"%center_seq)
                 for level in range(1, args.level+1):
                     l_dupl = []
+                    assert(target.get_levels()>= level)
                     for well_index in target.get_indices(level):
                         well_seq = seq_obj[well_index][0]
                         sys.stderr.write("well seq: %s\n"%well_seq)
                         dist = get_edit_distance(center_seq, well_seq)
+                        sys.stderr.write("edit distance: %s\n"%dist)
                         if dist <= args.edit_distance:
                             l_dupl.append(1)
                         else:

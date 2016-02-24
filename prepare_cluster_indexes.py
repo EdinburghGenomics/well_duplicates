@@ -19,12 +19,9 @@ LEVEL_2_MAX_DIST = 42
 LEVEL_3_MAX_DIST = 62
 
 DEF_SEED = 13
-DEF_SEQ = HIGHSEQ_4000 = "hiseq_4000"
-HIGHSEQ_X = "highseq_x"
 
 DEF_SAMPLE_SIZE = 2500
-MAX_CLUSTERS_4000 = 4312395
-MAX_CLUSTERS_X = 6470949
+MAX_CLUSTERS = 0
 
 
 def get_random_array(r_max, r_l, seed):
@@ -79,8 +76,6 @@ def _prepare_argparser():
     parser = ArgumentParser(description=description, formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("-f", "--slocs", dest="slocs", type=str,
                         help="The slocs file to analyse.")
-    parser.add_argument("-t", "--type", dest="stype", type=str, default=DEF_SEQ,
-                        help="the sequencer type, hiseq_4000 or hiseq_x")
     parser.add_argument("-s", "--seed", dest="seed", type=int, default=None,
                         help="Seed for the random read selection")
     parser.add_argument("-n", "--sample_size", dest="sample_size", type=int, default=DEF_SAMPLE_SIZE,
@@ -130,26 +125,28 @@ def main():
         sys.exit(1)
 
     # TODO some logging, but needs a logger implementation
-    sys.stderr.write("sequencer type: %s\n" % (args.stype))
     sys.stderr.write("seed: %s\n" % (args.seed))
     sys.stderr.write("sample size: %s\n" % (args.sample_size))
 
-    # generate random list depending on MAX_CLUSTERS and sample_size
-    # default sequencer is hiseq_4000
-    random_sample = []
-    if args.stype == DEF_SEQ:
-        random_sample = get_random_array(MAX_CLUSTERS_4000, args.sample_size, args.seed)
-    elif args.stype == HISEQ_X:
-        random_sample = get_random_array(MAX_CLUSTERS_X, args.sample_size, args.seed)
-    else:
-        sys.stderr.write(args.type + ": Illigal argument, has to be hiseq_4000 or hiseq_x\n")
-
-    sys.stderr.write("%s\n" % (random_sample))
     slocs_fh = None
     try:
         slocs_fh = open(args.slocs, 'rb')
     except IndexError:
         slocs_fh = sys.stdin
+
+    # get MAX_CLUSTERS from header of s.locs file
+    buf = slocs_fh.read(12)
+    header = struct.unpack('=ifI', buf)
+    MAX_CLUSTERS = int(header[2])
+
+
+    # generate random list depending on MAX_CLUSTERS and sample_size
+    # default sequencer is hiseq_4000
+
+    random_sample = get_random_array(MAX_CLUSTERS, args.sample_size, args.seed)
+
+    sys.stderr.write("%s\n" % (random_sample))
+
 
     coord_dict = {}
 

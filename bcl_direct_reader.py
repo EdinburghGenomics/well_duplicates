@@ -206,8 +206,11 @@ class Tile(object):
             assert tuple(struct.unpack('<III', filt_header)) == (0, 3, self.num_clusters)
 
             for idx in sorted_keys:
-                filt_fh.seek(idx + 12)
-
+                try:
+                    filt_fh.seek(idx + 12)
+                except:
+                    sys.stderr.write("Error seeking ahead at location: %s + 12"%idx)
+                    raise
                 filt_byte, = struct.unpack('B', filt_fh.read(1))
 
                 flag_collector[idx] = bool( filt_byte & 0b00000001 )
