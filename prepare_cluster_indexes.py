@@ -137,7 +137,7 @@ def main():
     # get MAX_CLUSTERS from header of s.locs file
     buf = slocs_fh.read(12)
     header = struct.unpack('=ifI', buf)
-    MAX_CLUSTERS = str(header[2])
+    MAX_CLUSTERS = int(header[2])
 
 
     # generate random list depending on MAX_CLUSTERS and sample_size
