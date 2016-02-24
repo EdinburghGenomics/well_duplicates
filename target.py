@@ -20,14 +20,15 @@ def load_targets(filename, levels=None):
         #it finds a single number which it assumes must be the centre of a new target.
         targ_lines = None
 
-        #Silly way to get all the lines in a file followed by a blank
-        for aline in chain(map(lambda x: x.rstrip(), coord_fh), ['']):
+        #Silly way to get all the lines in a file followed by a blank,
+        #without reading the whole file into a list.
+        for aline in chain( (x.rstrip() for x in coord_fh), ['']):
 
             if ',' not in aline:
                 #We've either hit EOF or the start of the next record.
                 if targ_lines:
                     all_targets.add_target([
-                            map(int,x.split(',')) for x in targ_lines[:levels]
+                            [int(x) for x in l.split(',')] for l in targ_lines[:levels]
                         ])
 
                 targ_lines = []

@@ -132,7 +132,7 @@ class TestBCLReader(unittest.TestCase):
 
         result = tile.get_seqs([clus[0] for clus in good_seqs + bad_seqs], end=10)
 
-        self.assertEquals(result, expected_result)
+        self.assertEqual(result, expected_result)
 
         #TODO - if I implement any caching then test that I get the same result on a second call
 
