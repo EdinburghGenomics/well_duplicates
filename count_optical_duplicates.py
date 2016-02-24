@@ -97,17 +97,19 @@ def main():
                 if not seq_obj[center][1]:
                     continue
                 center_seq = seq_obj[center][0]
-                sys.stderr.write("Center seq: %s\n"%center_seq)
+
                 for level in range(1, args.level+1):
                     l_dupl = []
                     assert(target.get_levels()>= level)
                     for well_index in target.get_indices(level):
                         well_seq = seq_obj[well_index][0]
-                        sys.stderr.write("well seq: %s\n"%well_seq)
                         dist = get_edit_distance(center_seq, well_seq)
-                        sys.stderr.write("edit distance: %s\n"%dist)
+                        
                         if dist <= args.edit_distance:
                             l_dupl.append(1)
+                            sys.stderr.write("Center seq: %s\n"%center_seq)
+                            sys.stderr.write("well seq: %s\n"%well_seq)
+                            sys.stderr.write("edit distance: %s\n"%dist)
                         else:
                             l_dupl.append(0)
                     tile_dupl[tile][level]['tally'] += sum(l_dupl)
