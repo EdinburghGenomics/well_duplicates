@@ -17,11 +17,12 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 LEVEL_1_MAX_DIST = 22
 LEVEL_2_MAX_DIST = 42
 LEVEL_3_MAX_DIST = 62
+LEVEL_4_MAX_DIST = 82
+LEVEL_5_MAX_DIST = 102
 
 DEF_SEED = 13
 
 DEF_SAMPLE_SIZE = 2500
-MAX_CLUSTERS = 0
 
 
 def get_random_array(r_max, r_l, seed):
@@ -44,11 +45,12 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh):
     l1_index = []
     l2_index = []
     l3_index = []
-
+    l4_index = []
+    l5_index = []
     # reset slocs file handle to position 12 bytes (i.e. after the header) or 5000*8bytes (0 or 5000 lines) before cluster_coord
     # TODO max distance for hiseq 4000, need to check for X
-    offset = max([12, 12 + (cluster_coord - 5000) * 8])
-    offset_coord = max([0, cluster_coord - 5000])
+    offset = max([12, 12 + (cluster_coord - 20000) * 8])
+    offset_coord = max([0, cluster_coord - 20000])
     sys.stderr.write("%s\n"%offset)
     slocs_fh.seek(offset)
     for coords in enumerate(yield_coords(slocs_fh)):
@@ -61,9 +63,13 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh):
             l2_index.append(cluster_index)
         elif LEVEL_2_MAX_DIST < dist <= LEVEL_3_MAX_DIST:
             l3_index.append(cluster_index)
-        if cluster_index > cluster_coord + 5000:
+        elif LEVEL_3_MAX_DIST < dist <= LEVEL_4_MAX_DIST:
+            l4_index.append(cluster_index)
+        elif LEVEL_4_MAX_DIST < dist <= LEVEL_5_MAX_DIST:
+            l5_index.append(cluster_index)
+        if cluster_index > cluster_coord + 20000:
             break
-    return l1_index, l2_index, l3_index
+    return l1_index, l2_index, l3_index, l4_index, l5_index
 
 
 def _prepare_argparser():
@@ -140,7 +146,7 @@ def main():
     buf = slocs_fh.read(12)
     header = struct.unpack('=ifI', buf)
     MAX_CLUSTERS = int(header[2])
-
+    sys.stderr.write("Maximum number of cluster according to s.locs: %s\n"%MAX_CLUSTERS)
 
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
@@ -160,15 +166,17 @@ def main():
         cluster_x = int(t[0] * 10.0 + 1000.5)
         cluster_y = int(t[1] * 10.0 + 1000.5)
 
-        l1, l2, l3 = get_indexes(coord, cluster_x, cluster_y, slocs_fh)
+        l1, l2, l3, l4, l5 = get_indexes(coord, cluster_x, cluster_y, slocs_fh)
         assert coord not in coord_dict
-        coord_dict[coord] = l1, l2, l3
+        coord_dict[coord] = l1, l2, l3, l4, l5
 
     for key in coord_dict.keys():
-        print "%s\n%s\n%s\n%s" % (key,
+        print "%s\n%s\n%s\n%s\n%s\n%s" % (key,
                                   ",".join(str(n) for n in coord_dict[key][0]),
                                   ",".join(str(n) for n in coord_dict[key][1]),
-                                  ",".join(str(n) for n in coord_dict[key][2]))
+                                  ",".join(str(n) for n in coord_dict[key][2]),
+                                  ",".join(str(n) for n in coord_dict[key][3]),
+                                  ",".join(str(n) for n in coord_dict[key][4]))
 
     slocs_fh.close()
 

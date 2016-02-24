@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+from __future__ import division, print_function, absolute_import
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import sys
+
+
 import logging
 import Levenshtein
 import bcl_direct_reader
@@ -26,13 +29,19 @@ def output_writer(lane, tile_dupl, levels):
 
     for tile in tile_dupl.keys():
         sys.stdout.write("Tile %s\n" % tile)
+        levels_tally = 0
+        levels_length = 0
         for level in range(1, levels+1):
+            # {'1208': [{'length': 0, 'tally': 0}, {'length': 5989, 'tally': 181}, {'length': 11966, 'tally': 335}, {'length': 17939, 'tally': 509}]}
             t_tally = tile_dupl[tile][level]['tally']
             l_tally[level] += t_tally
+            levels_tally += t_tally
             t_length = tile_dupl[tile][level]['length']
             l_length[level] += t_length
+            levels_length = t_length
             perc_dup = t_tally / t_length * 100
-            sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
+            perc_dup_cum = levels_tally / levels_length * 100
+            sys.stdout.write("Level %s: %s\tcumulative: %s\n" % (level, perc_dup, perc_dup_cum))
     sys.stdout.write("Lane %s\n" % lane)
 
     for level in range(1,levels+1):
@@ -52,7 +61,7 @@ def main():
 
     lanes = range(1, 8)
     if args.lane:
-        lanes = [args.lane]
+        lanes = args.lane.split(',')
 
     tiles = []
     max_tile = 0
@@ -60,12 +69,13 @@ def main():
         max_tile = 28
     else:
         max_tile = 24
+
     if args.tile_id:
-        tiles = [args.tile_id]
+        tiles = args.tile_id.split(',')
     else:
         for swath in [11, 12, 21, 22]:
             for tile in range(1, max_tile):  # should be 24 for hiseq_X
-                tile_id = "%s%s" % (swath, tile)
+                tile_id = "%s%02d" % (swath, tile)
                 tiles.append(tile_id)
 
     targets = load_targets(args.coord_file, args.level+1)
@@ -76,7 +86,7 @@ def main():
         tile_dupl = {}
         for tile in tiles:
             tile_bcl = bcl_reader.get_tile(lane, tile)
-            seq_obj = tile_bcl.get_seqs(targets.get_all_indices())
+            seq_obj = tile_bcl.get_seqs(targets.get_all_indices(),50,100)
 
             # Initialise tally and length counters for this tile
             tile_dupl[tile] = [{'tally': 0, 'length': 0} for level in range(0, args.level+1)]
@@ -86,23 +96,34 @@ def main():
                 if target_counter >= args.sample_size:
                     break
                 center = target.get_centre()
-                sys.stderr.write("Center: %s\n"%center)
+                #sys.stderr.write("Center: %s\n"%center)
+
+                # if the center sequence does not pass the pass filter we don't assess edit distance
+                # as large number of Ns compared to other reads with large number of Ns results in small edit distance
+                if not seq_obj[center][1]:
+                    continue
                 center_seq = seq_obj[center][0]
-                sys.stderr.write("Center seq: %s\n"%center_seq)
+
                 for level in range(1, args.level+1):
                     l_dupl = []
                     assert(target.get_levels()>= level)
                     for well_index in target.get_indices(level):
                         well_seq = seq_obj[well_index][0]
-                        sys.stderr.write("well seq: %s\n"%well_seq)
                         dist = get_edit_distance(center_seq, well_seq)
-                        sys.stderr.write("edit distance: %s\n"%dist)
+
                         if dist <= args.edit_distance:
                             l_dupl.append(1)
+                            sys.stderr.write("Center seq: %s\n"%center_seq)
+                            sys.stderr.write("well seq: %s\n"%well_seq)
+                            sys.stderr.write("edit distance: %s\n"%dist)
                         else:
                             l_dupl.append(0)
-                    tile_dupl[tile][level]['tally'] += sum(l_dupl)
-                    tile_dupl[tile][level]['length'] += len(l_dupl)
+                    if sum(l_dupl)>=1:
+                        tile_dupl[tile][level]['tally'] += 1
+                    tile_dupl[tile][level]['length'] += 1
+                    #tile_dupl[tile][level]['tally'] += sum(l_dupl)
+                    #tile_dupl[tile][level]['length'] += len(l_dupl)
+            sys.stderr.write(str(tile_dupl))
         output_writer(lane, tile_dupl, args.level)
 
 
@@ -132,7 +153,7 @@ def _prepare_argparser():
                         help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
     parser.add_argument("-t", "--tile", dest="tile_id", type=str,
                         help="specific tile on a lane to analyse, four digits, follow Illumina tile numbering")
-    parser.add_argument("-i", "--lane", dest="lane", type=int,
+    parser.add_argument("-i", "--lane", dest="lane", type=str,
                         help="specific lane to analyse, 1-8")
 
     return parser
