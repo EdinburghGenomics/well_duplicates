@@ -29,14 +29,19 @@ def output_writer(lane, tile_dupl, levels):
 
     for tile in tile_dupl.keys():
         sys.stdout.write("Tile %s\n" % tile)
+        levels_tally = 0
+        levels_length = 0
         for level in range(1, levels+1):
             # {'1208': [{'length': 0, 'tally': 0}, {'length': 5989, 'tally': 181}, {'length': 11966, 'tally': 335}, {'length': 17939, 'tally': 509}]}
             t_tally = tile_dupl[tile][level]['tally']
             l_tally[level] += t_tally
+            levels_tally += t_tally
             t_length = tile_dupl[tile][level]['length']
             l_length[level] += t_length
-            perc_dup =  t_tally / t_length * 100
-            sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
+            levels_length = t_length
+            perc_dup = t_tally / t_length * 100
+            perc_dup_cum = levels_tally / levels_length * 100
+            sys.stdout.write("Level %s: %s\tcumulative: %s\n" % (level, perc_dup, perc_dup_cum))
     sys.stdout.write("Lane %s\n" % lane)
 
     for level in range(1,levels+1):
