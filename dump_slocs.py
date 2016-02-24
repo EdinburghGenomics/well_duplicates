@@ -38,6 +38,8 @@ def main():
 
 def yield_header(f):
     #First 3*4 bytes are the header
+    #Only the third element is really useful as this is the number of locations
+    #that should be in the file.
     buf = f.read(12)
     return struct.unpack('<ifI', buf)
 
