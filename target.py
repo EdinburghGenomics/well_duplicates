@@ -8,7 +8,8 @@ def load_targets(filename, levels=None):
        the number of levels represented in the file, but you can opt to load just a
        subset.
         filename: File to open
-        levels: Number of levels to load, else all levels in the file will be loaded
+        levels: Number of levels to load inclusive of the centre,
+                else all levels in the file will be loaded.
     """
 
     all_targets = AllTargets()

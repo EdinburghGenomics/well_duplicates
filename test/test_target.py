@@ -66,6 +66,12 @@ class TestTargetReader(unittest.TestCase):
         res2 = target_for_196654.get_indices(1)
         self.assertEqual(res2, map(int,'195083,195084,196653,196655,198225,198226'.split(',')))
 
+        #Getting all indices should be the same as getting them by level
+        gathered_indices = set()
+        for lev in range(4):
+            gathered_indices.update(target_for_196654.get_indices(lev))
+        self.assertEqual(gathered_indices, set(target_for_196654.get_indices()))
+
     def test_multiple_appearances(self):
         all_targets = self.all_targets
 
