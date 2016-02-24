@@ -141,12 +141,19 @@ class Tile(object):
                 start=2 and end=10 will skip the first two bases and yield the
                 next 8.
         """
+        #To build the sequence we have to loop over all the .bcl.gz files in the
+        #cycle folders.  These are all named C[num].1 where num is 1-308 (unpadded).
+        #The first base of the read will not be in C1.1 because there is an adapter,
+        #and also for paired-end reads it doesn't make sense to read all bases as this
+        #will run though onto the other end.  However, we can worry about this later.
+        if end is None:
+            end = self.num_cycles
 
         #We could use NumPy
         #for more efficient storage but it seems overkill as the number of reads
         #being extracted is comparatively small.
         #This also ensures that all the indices are ints
-        seq_collector =  { int(idx) : [] for idx in cluster_indices   }
+        seq_collector =  { int(idx) : ['N'] * (end - start) for idx in cluster_indices }
         flag_collector = { int(idx) : None for idx in cluster_indices }
         sorted_keys = sorted(seq_collector.keys())
 
@@ -158,14 +165,6 @@ class Tile(object):
         #And just to be sure, no key should be negative
         if sorted_keys[0] < 0:
             raise IndexError("Requested cluster %i is a negative number." % sorted_keys[0])
-
-        #To build the sequence we have to loop over all the .bcl.gz files in the
-        #cycle folders.  These are all named C[num].1 where num is 1-308 (unpadded).
-        #The first base of the read will not be in C1.1 because there is an adapter,
-        #and also for paired-end reads it doesn't make sense to read all bases as this
-        #will run though onto the other end.  However, we can worry about this later.
-        if end is None:
-            end = self.num_cycles
 
         for cycle in range(start, end):
             cycle_dir = os.path.join(self.data_dir, 'C%i.1' % (cycle + 1))
@@ -179,24 +178,41 @@ class Tile(object):
                 #file for this tile.
                 assert struct.unpack('<I', bcl_header)[0] == self.num_clusters
 
-                for idx in sorted_keys:
-                    fh.seek(idx + 4)
-                    #Is reading bytes 1 at a time slow?  I'd imagine that internal
-                    #cacheing negates any need for chunked reads at this level.
-                    base_byte, = struct.unpack('B', fh.read(1))
+                #I did have a cunning system where we would seek through the file,
+                #just reading the chunks we wanted.  Turns out for more than, say,
+                #10 reads, it's faster just to slurp the thing.  For over 10000 it's
+                #much faster!
+                if len(sorted_keys) > 10:
+                    slurped_file = fh.read()
 
-                    base = 'N'
-                    #qual = 0
-                    if base_byte:
-                        #The two lowest bits give us the base call
-                        base = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
+                    for idx in sorted_keys:
+                        base_byte = slurped_file[idx]
 
-                        #And the high bits give us the quality, but we're not using
-                        #it here.
-                        #qual = base_byte >> 2
+                        #base = 'N'
+                        #qual = 0
+                        if base_byte:
+                            #The two lowest bits give us the base call
+                            base = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
 
-                    #Collect the base
-                    seq_collector[idx].append(base)
+                            #And the high bits give us the quality, but we're not using
+                            #it here.
+                            #qual = base_byte >> 2
+
+                            #Collect the base
+                            seq_collector[idx][cycle - start] = base
+                else:
+                    #Copy-paste-ahoy!
+                    for idx in sorted_keys:
+                        fh.seek(idx + 4)
+                        #Is reading bytes 1 at a time slow?  I'd imagine that internal
+                        #cacheing negates any need for chunked reads at this level.
+                        base_byte, = struct.unpack('B', fh.read(1))
+
+                        if base_byte:
+                            base = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
+                            seq_collector[idx][cycle - start] = base
+
+
 
         #Now get the accept/reject flag from the .filter file
         #This must exist as we opened it earlier when reading self.num_clusters

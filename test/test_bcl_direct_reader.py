@@ -4,6 +4,7 @@ from __future__ import print_function, division, absolute_import
 import sys
 import unittest
 import time
+import random
 
 try:
     from bcl_direct_reader import BCLReader
@@ -87,6 +88,42 @@ class TestBCLReader(unittest.TestCase):
         self.assertEqual(len(slow_seq), tile.num_cycles)
 
         print("\n*** Slow read took %.2f seconds." % (time.time() - start_time))
+
+    @unittest.skip("slow test")
+    def test_multi_read_speed(self):
+
+        # Due to the way I read the data, getting bases from many spots should
+        # be fairly efficient.
+        proj = BCLReader(TEST_PROJ)
+        tile = proj.get_tile(1, 1101)
+
+        # How to generate some consistent lists?
+        fetchlists = {}
+        sample_sizes = [1,10,100,1000,10000,100000]
+
+        start_time = time.time()
+        for count in sample_sizes:
+            random.seed(0)
+            fetchlists[count] = random.sample(range(4309650), count)
+        print("\n*** Making the number lists took %.2f seconds." % (time.time() - start_time))
+
+        #Now see about fetching
+        for count in sample_sizes:
+            start_time = time.time()
+            res = tile.get_seqs(fetchlists[count], start=20, end=40)
+            print("\n*** Fetching 20 bases from %i sequences took %.2f seconds." %
+                                               (count,           (time.time() - start_time))
+                 )
+
+        #In my mind, fetching the first 10000 seqs should be faster than fetching just the last
+        #in the file, but maybe not...
+        start_time = time.time()
+        res = tile.get_seqs([4309649], start=20, end=40)
+        print("\n*** Fetching 20 bases from sequence 4309649 took %.2f seconds." % (time.time() - start_time))
+
+        start_time = time.time()
+        res = tile.get_seqs(range(100000), start=20, end=40)
+        print("\n*** Fetching 20 bases from the first 100000 seqs took %.2f seconds." % (time.time() - start_time))
 
     def test_invalid_get_seqs(self):
 
