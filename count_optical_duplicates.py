@@ -56,7 +56,7 @@ def main():
 
     lanes = range(1, 8)
     if args.lane:
-        lanes = [args.lane]
+        lanes = args.lane.split(',')
 
     tiles = []
     max_tile = 0
