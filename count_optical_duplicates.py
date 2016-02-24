@@ -145,7 +145,7 @@ def _prepare_argparser():
                         help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
     parser.add_argument("-t", "--tile", dest="tile_id", type=str,
                         help="specific tile on a lane to analyse, four digits, follow Illumina tile numbering")
-    parser.add_argument("-i", "--lane", dest="lane", type=int,
+    parser.add_argument("-i", "--lane", dest="lane", type=str,
                         help="specific lane to analyse, 1-8")
 
     return parser
