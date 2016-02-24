@@ -91,6 +91,7 @@ def main():
                 sys.stderr.write("Center seq: %s\n"%center_seq)
                 for level in range(1, args.level+1):
                     l_dupl = []
+                    assert(target.get_levels()>= level)
                     for well_index in target.get_indices(level):
                         well_seq = seq_obj[well_index][0]
                         sys.stderr.write("well seq: %s\n"%well_seq)
