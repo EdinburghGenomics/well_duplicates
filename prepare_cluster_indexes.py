@@ -21,7 +21,6 @@ LEVEL_3_MAX_DIST = 62
 DEF_SEED = 13
 
 DEF_SAMPLE_SIZE = 2500
-MAX_CLUSTERS = 0
 
 
 def get_random_array(r_max, r_l, seed):
@@ -140,7 +139,7 @@ def main():
     buf = slocs_fh.read(12)
     header = struct.unpack('=ifI', buf)
     MAX_CLUSTERS = int(header[2])
-
+    sys.stderr.write("Maximum number of cluster according to s.locs: %s"%MAX_CLUSTERS)
 
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
