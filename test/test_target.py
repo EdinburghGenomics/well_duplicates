@@ -10,7 +10,7 @@ try:
 except:
     #If this fails, you is probably running the tests wrongly
     print("****",
-          "You want to run these tests by using:",
+          "You want to run these tests from the top-level source folder by using:",
           "  python -m unittest test.test_target",
           "or even",
           "  python -m unittest discover",
@@ -21,6 +21,8 @@ except:
 # These tests use a subset of the file hiseq_4000_10000clusters.list
 
 TEST_FILE = 'test/small.list'
+BAD_FILE_1 = 'test/bad1.list'
+BAD_FILE_2 = 'test/bad2.list'
 
 class TestTargetReader(unittest.TestCase):
 
@@ -33,24 +35,32 @@ class TestTargetReader(unittest.TestCase):
     def test_load_subset(self):
         sub_targets = load_targets(TEST_FILE, 2)
 
-        self.assertEquals(sub_targets.levels, 2)
+        self.assertEqual(sub_targets.levels, 2)
+
+    def test_load_badfile(self):
+
+        #bad1 has a blank line at the end
+        self.assertRaises(ValueError, load_targets, BAD_FILE_1)
+
+        #bad2 has the last line missing
+        self.assertRaises(AssertionError, load_targets, BAD_FILE_2)
 
     def test_num_levels(self):
         all_targets = self.all_targets
 
         #I know there are 4 levels in the test file
-        self.assertEquals(all_targets.levels, 4)
+        self.assertEqual(all_targets.levels, 4)
 
-        self.assertEquals(all_targets.get_target_by_centre(196654).get_levels(), 4)
+        self.assertEqual(all_targets.get_target_by_centre(196654).get_levels(), 4)
 
     def test_num_targets(self):
         all_targets = self.all_targets
 
         #There should be 7 of them
-        self.assertEquals(len(all_targets.get_all_targets()), 7)
+        self.assertEqual(len(all_targets.get_all_targets()), 7)
 
         #Ditto if we do it this way
-        self.assertEquals(len(set(all_targets.get_all_indices(0))), 7)
+        self.assertEqual(len(set(all_targets.get_all_indices(0))), 7)
 
     def test_lookups(self):
         all_targets = self.all_targets
@@ -64,7 +74,7 @@ class TestTargetReader(unittest.TestCase):
         self.assertEqual(target_for_196654.get_centre(), 196654)
 
         res2 = target_for_196654.get_indices(1)
-        self.assertEqual(res2, map(int,'195083,195084,196653,196655,198225,198226'.split(',')))
+        self.assertEqual(res2, list(map(int,'195083,195084,196653,196655,198225,198226'.split(','))))
 
         #Getting all indices should be the same as getting them by level
         gathered_indices = set()
