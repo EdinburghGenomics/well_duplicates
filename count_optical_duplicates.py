@@ -103,6 +103,7 @@ def main():
                             l_dupl.append(0)
                     tile_dupl[tile][level]['tally'] += sum(l_dupl)
                     tile_dupl[tile][level]['length'] += len(l_dupl)
+            sys.stderr.write(str(tile_dupl))
         output_writer(lane, tile_dupl, args.level)
 
 
