@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+from __future__ import division, print_function, absolute_import
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import sys
+
+
 import logging
 import Levenshtein
 import bcl_direct_reader
@@ -27,11 +30,12 @@ def output_writer(lane, tile_dupl, levels):
     for tile in tile_dupl.keys():
         sys.stdout.write("Tile %s\n" % tile)
         for level in range(1, levels+1):
+            # {'1208': [{'length': 0, 'tally': 0}, {'length': 5989, 'tally': 181}, {'length': 11966, 'tally': 335}, {'length': 17939, 'tally': 509}]}
             t_tally = tile_dupl[tile][level]['tally']
             l_tally[level] += t_tally
             t_length = tile_dupl[tile][level]['length']
             l_length[level] += t_length
-            perc_dup = t_tally / t_length * 100
+            perc_dup =  t_tally / t_length * 100
             sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
     sys.stdout.write("Lane %s\n" % lane)
 
