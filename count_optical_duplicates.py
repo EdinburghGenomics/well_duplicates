@@ -80,7 +80,7 @@ def main():
         tile_dupl = {}
         for tile in tiles:
             tile_bcl = bcl_reader.get_tile(lane, tile)
-            seq_obj = tile_bcl.get_seqs(targets.get_all_indices())
+            seq_obj = tile_bcl.get_seqs(targets.get_all_indices(),50,100)
 
             # Initialise tally and length counters for this tile
             tile_dupl[tile] = [{'tally': 0, 'length': 0} for level in range(0, args.level+1)]
