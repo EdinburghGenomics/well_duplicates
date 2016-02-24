@@ -125,7 +125,6 @@ def main():
         sys.exit(1)
 
     # TODO some logging, but needs a logger implementation
-    sys.stderr.write("sequencer type: %s\n" % (args.stype))
     sys.stderr.write("seed: %s\n" % (args.seed))
     sys.stderr.write("sample size: %s\n" % (args.sample_size))
 
