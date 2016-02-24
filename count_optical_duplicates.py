@@ -64,8 +64,9 @@ def main():
         max_tile = 28
     else:
         max_tile = 24
+
     if args.tile_id:
-        tiles = [args.tile_id]
+        tiles = args.tile_id.split(',')
     else:
         for swath in [11, 12, 21, 22]:
             for tile in range(1, max_tile):  # should be 24 for hiseq_X
@@ -90,7 +91,7 @@ def main():
                 if target_counter >= args.sample_size:
                     break
                 center = target.get_centre()
-                sys.stderr.write("Center: %s\n"%center)
+                #sys.stderr.write("Center: %s\n"%center)
 
                 # if the center sequence does not pass the pass filter we don't assess edit distance
                 # as large number of Ns compared to other reads with large number of Ns results in small edit distance
@@ -104,7 +105,7 @@ def main():
                     for well_index in target.get_indices(level):
                         well_seq = seq_obj[well_index][0]
                         dist = get_edit_distance(center_seq, well_seq)
-                        
+
                         if dist <= args.edit_distance:
                             l_dupl.append(1)
                             sys.stderr.write("Center seq: %s\n"%center_seq)
