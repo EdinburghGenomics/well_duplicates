@@ -43,10 +43,14 @@ def output_writer(lane, tile_dupl, levels):
             perc_dup_cum = levels_tally / levels_length * 100
             sys.stdout.write("Level %s: %s\tcumulative: %s\n" % (level, perc_dup, perc_dup_cum))
     sys.stdout.write("Lane %s\n" % lane)
-
+    cum_tally = 0
+    cum_length = 0
     for level in range(1,levels+1):
+        cum_tally += l_tally[level]
+        cum_length = l_length[level]
         perc_dup = l_tally[level] / l_length[level] * 100
-        sys.stdout.write("Level %s: %s\n" % (level, perc_dup))
+        perc_dup_cum = cum_tally / cum_length * 100
+        sys.stdout.write("Level %s: %s\tcumulative: %s\n" % (level, perc_dup, perc_dup_cum))
 
 
 def main():
@@ -86,7 +90,7 @@ def main():
         tile_dupl = {}
         for tile in tiles:
             tile_bcl = bcl_reader.get_tile(lane, tile)
-            seq_obj = tile_bcl.get_seqs(targets.get_all_indices(),50,100)
+            seq_obj = tile_bcl.get_seqs(targets.get_all_indices(), args.start, args.end)
 
             # Initialise tally and length counters for this tile
             tile_dupl[tile] = [{'tally': 0, 'length': 0} for level in range(0, args.level+1)]
@@ -155,6 +159,10 @@ def _prepare_argparser():
                         help="specific tile on a lane to analyse, four digits, follow Illumina tile numbering")
     parser.add_argument("-i", "--lane", dest="lane", type=str,
                         help="specific lane to analyse, 1-8")
+    parser.add_argument("-x", "--start", dest="start", type=int, default=50,
+                        help="Starting base position for the slice of read to be examined")
+    parser.add_argument("-y", "--end", dest="end", type=int, default=100,
+                        help="Final base position for the slice of read to be examined")
 
     return parser
 
