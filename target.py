@@ -2,6 +2,7 @@
 from __future__ import print_function, division, absolute_import
 
 from itertools import chain
+from collections import defaultdict
 
 def load_targets(filename, levels=None):
     """Loads the target coordinates from a CSV file.  This function will now infer
@@ -46,7 +47,8 @@ class AllTargets:
         self._target_dict = dict()
 
         # This will contain [ index : [ target, target, ... ] ]
-        self._reverse_lookup = dict()
+        # So a natural use for a defaultdict of lists
+        self._reverse_lookup = defaultdict(list)
 
         self.levels = None
 
@@ -75,11 +77,7 @@ class AllTargets:
 
         #As well as indexing by centre, hash all indices
         for idx in new_target.get_indices():
-            if idx in self._reverse_lookup:
                 self._reverse_lookup[idx].append(new_target)
-            else:
-                self._reverse_lookup[idx] = [new_target]
-
 
     def get_all_indices(self, level = None):
 
