@@ -22,3 +22,7 @@ The file ```bcl_direct_reader.py``` contains pure Python code for retrieving seq
 
 Run ```pydoc ./bcl_direct_reader.py``` for more info.
 
+Warning
+-------
+
+This code is not yet well tested, specifically it has not been tested on Hiseq X data, though it is designed to work on those flowcells.
