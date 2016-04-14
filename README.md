@@ -13,7 +13,7 @@ Usage
 
 ```prepare_cluster_indexes.py``` will come up with a list of cluster locations (targets) to be sampled, and work out the co-ordinates of all the surrounding wells.  It parses the standard .locs file found in the Data directory for every Illumina run.  Note that the layout of wells is specific to the generation of flowcell rather than being specific to the machine, so watch out if you are planning to use the same locations file for scanning multiple flowcells - check that the .locs files are indeed the same.
 
-```count_optical_duplicates.py``` will read the data from your BCL files and output duplication stats.  It needs to be supplied with a run to be analysed and also a targets file produced with the ```prepare_cluster_indexes.py``` script.
+```count_well_duplicates.py``` will read the data from your BCL files and output duplication stats.  It needs to be supplied with a run to be analysed and also a targets file produced with the ```prepare_cluster_indexes.py``` script.
 
 BCL Direct Reader
 -----------------

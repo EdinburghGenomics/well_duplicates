@@ -32,7 +32,10 @@ def output_writer(lane, tile_dupl, levels):
         levels_tally = 0
         levels_length = 0
         for level in range(1, levels+1):
-            # {'1208': [{'length': 0, 'tally': 0}, {'length': 5989, 'tally': 181}, {'length': 11966, 'tally': 335}, {'length': 17939, 'tally': 509}]}
+            # {'1208': [ {'length': 0, 'tally': 0},
+            #            {'length': 5989, 'tally': 181},
+            #            {'length': 11966, 'tally': 335},
+            #            {'length': 17939, 'tally': 509} ]}
             t_tally = tile_dupl[tile][level]['tally']
             l_tally[level] += t_tally
             levels_tally += t_tally
@@ -41,7 +44,8 @@ def output_writer(lane, tile_dupl, levels):
             levels_length = t_length
             perc_dup = t_tally / t_length * 100
             perc_dup_cum = levels_tally / levels_length * 100
-            sys.stdout.write("Level %s: %s\tcumulative: %s\n" % (level, perc_dup, perc_dup_cum))
+            sys.stdout.write("Level %s: %s\tcumulative: %s\n" %
+                                (level, perc_dup,       perc_dup_cum))
     sys.stdout.write("Lane %s\n" % lane)
     cum_tally = 0
     cum_length = 0
@@ -103,7 +107,8 @@ def main():
                 #sys.stderr.write("Center: %s\n"%center)
 
                 # if the center sequence does not pass the pass filter we don't assess edit distance
-                # as large number of Ns compared to other reads with large number of Ns results in small edit distance
+                # as large number of Ns compared to other reads with large number of Ns results in
+                # small edit distance
                 if not seq_obj[center][1]:
                     continue
                 center_seq = seq_obj[center][0]
@@ -136,9 +141,9 @@ def _prepare_argparser():
     function first.
     """
     usage = """usage: %prog <-f coord_file> [-e edit_distance -n sample_size -l level]"""
-    description = """This Script creates or executes commands that will assess optical duplicates
-    in a run without mapping. Reads within level l of a selected reads from the coordinate file will be assessed for
-    Levenshtein (edit) distance.
+    description = """This script creates or executes commands that will assess well duplicates
+    in a run without mapping. Reads within level l of a selected reads from the coordinate file
+    will be assessed for Levenshtein (edit) distance.
     """
 
     prog_version = "0.1"
@@ -148,7 +153,8 @@ def _prepare_argparser():
     parser.add_argument("-e", "--edit_distance", dest="edit_distance", type=int, default=2,
                         help="max edit distance between two reads to count as duplicate")
     parser.add_argument("-n", "--sample_size", dest="sample_size", type=int, default=2500,
-                        help="number of reads to be tested for optical duplicates (max number of prepared clusters is 10000 at the moment)")
+                        help="number of reads to be tested for well duplicates (max number" +
+                             " of prepared clusters is 10000 at the moment)")
     parser.add_argument("-l", "--level", dest="level", type=int, default=3,
                         help="levels around central spot to test, max = 3")
     parser.add_argument("-s", "--stype", dest="stype", type=str,
