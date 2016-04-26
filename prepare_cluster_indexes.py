@@ -1,10 +1,12 @@
 #!/usr/bin/env python
-
+from __future__ import division, print_function, absolute_import
 """
 
 input: sample_size n, sequencer_type (hiseq4000, hiseqx), levels (max 3)
 return: dictionary of surrounding cluster indexes for n randomly selected wells
 """
+__AUTHORS__ = ['Judith Risse', 'Tim Booth']
+__VERSION__ = 0.2
 
 import random
 import sys
@@ -14,11 +16,8 @@ import math
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 # maximum pixel distence between wells at a given level, required for edges of the flow cell
-LEVEL_1_MAX_DIST = 22
-LEVEL_2_MAX_DIST = 42
-LEVEL_3_MAX_DIST = 62
-LEVEL_4_MAX_DIST = 82
-LEVEL_5_MAX_DIST = 102
+# going out past 5 steps doesn't work properly!
+MAX_DISTS = [1, 22, 42, 62, 82, 102]
 
 DEF_SEED = 13
 
@@ -37,42 +36,37 @@ def get_distance(x1, y1, x2, y2):
     return dist
 
 
-def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh):
+def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh, levels=5):
     """
 
     :rtype: object
     """
-    l1_index = []
-    l2_index = []
-    l3_index = []
-    l4_index = []
-    l5_index = []
-    # reset slocs file handle to position 12 bytes (i.e. after the header) or 5000*8bytes (0 or 5000 lines) before cluster_coord
+    MAX_SEARCH_AREA = 20000
+
+    l_index = [ [] for l in range(levels) ]
+
+    # reset slocs file handle to position 12 bytes (i.e. after the header)i
+    # or 5000*8bytes (0 or 5000 lines) before cluster_coord
     # TODO max distance for hiseq 4000, need to check for X
-    offset = max([12, 12 + (cluster_coord - 20000) * 8])
-    offset_coord = max([0, cluster_coord - 20000])
-    sys.stderr.write("%s\n"%offset)
+    offset_coord = max([0, cluster_coord - MAX_SEARCH_AREA])
+    offset = offset_coord * 8 + 12 #Byte offset in the file
+    log(str(offset))
     slocs_fh.seek(offset)
     for coords in enumerate(yield_coords(slocs_fh)):
         (x, y) = coords[1]
         cluster_index = coords[0] + offset_coord
         dist = get_distance(cluster_x, cluster_y, x, y)
-        if 1 < dist <= LEVEL_1_MAX_DIST:
-            l1_index.append(cluster_index)
-        elif LEVEL_1_MAX_DIST < dist <= LEVEL_2_MAX_DIST:
-            l2_index.append(cluster_index)
-        elif LEVEL_2_MAX_DIST < dist <= LEVEL_3_MAX_DIST:
-            l3_index.append(cluster_index)
-        elif LEVEL_3_MAX_DIST < dist <= LEVEL_4_MAX_DIST:
-            l4_index.append(cluster_index)
-        elif LEVEL_4_MAX_DIST < dist <= LEVEL_5_MAX_DIST:
-            l5_index.append(cluster_index)
-        if cluster_index > cluster_coord + 20000:
+
+        for lev in range(levels): # 0,1,2,3,4
+            if MAX_DISTS[lev] < dist <= MAX_DISTS[lev+1]:
+                l_index[lev].append(cluster_index)
+
+        if cluster_index > cluster_coord + MAX_SEARCH_AREA:
             break
-    return l1_index, l2_index, l3_index, l4_index, l5_index
+    return l_index
 
 
-def _prepare_argparser():
+def parse_args():
     """Prepare argparser object. New options will be added in this
     function first.
     """
@@ -80,9 +74,8 @@ def _prepare_argparser():
     the the indexes of surrounding coordinates with distances 1-3 from a HiSeq 4000 or HiSeqX s.locs file.
     """
 
-    prog_version = "0.1"
     parser = ArgumentParser(description=description, formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-f", "--slocs", dest="slocs", type=str,
+    parser.add_argument("-f", "--slocs", dest="slocs", type=str, required=True,
                         help="The slocs file to analyse.")
     parser.add_argument("-s", "--seed", dest="seed", type=int, default=None,
                         help="Seed for the random read selection")
@@ -90,18 +83,6 @@ def _prepare_argparser():
                         help="number of n random clusters")
 
     return parser.parse_args()
-
-
-def _verify_option(args):
-    """Check if the mandatory option are present in the options objects.
-    @return False if any argument is wrong."""
-    arg_pass = True
-
-    if not args.slocs:
-        sys.stderr.write("You must specify a read file.\n")
-        arg_pass = False
-    return arg_pass
-
 
 def yield_coords(f):
     # You must have read the header first
@@ -122,19 +103,15 @@ def yield_coords(f):
         clusternum += 1
         buf = f.read(8)
 
+def log(msg):
+    print(msg, file=sys.stderr)
 
 def main():
-    args = _prepare_argparser()
-
-    # verify options
-    arg_pass = _verify_option(args)
-    if not arg_pass:
-        sys.stderr.write("Non valid arguments: exit")
-        sys.exit(1)
+    args = parse_args()
 
     # TODO some logging, but needs a logger implementation
-    sys.stderr.write("seed: %s\n" % (args.seed))
-    sys.stderr.write("sample size: %s\n" % (args.sample_size))
+    log("seed: %s" % (args.seed))
+    log("sample size: %s" % (args.sample_size))
 
     slocs_fh = None
     try:
@@ -146,14 +123,14 @@ def main():
     buf = slocs_fh.read(12)
     header = struct.unpack('=ifI', buf)
     MAX_CLUSTERS = int(header[2])
-    sys.stderr.write("Maximum number of cluster according to s.locs: %s\n"%MAX_CLUSTERS)
+    log("Maximum number of cluster according to s.locs: %s" % MAX_CLUSTERS)
 
     # generate random list depending on MAX_CLUSTERS and sample_size
     # default sequencer is hiseq_4000
 
     random_sample = get_random_array(MAX_CLUSTERS, args.sample_size, args.seed)
 
-    sys.stderr.write("%s\n" % (random_sample))
+    log(str(random_sample))
 
 
     coord_dict = {}
@@ -166,17 +143,16 @@ def main():
         cluster_x = int(t[0] * 10.0 + 1000.5)
         cluster_y = int(t[1] * 10.0 + 1000.5)
 
-        l1, l2, l3, l4, l5 = get_indexes(coord, cluster_x, cluster_y, slocs_fh)
+        all_levs = get_indexes(coord, cluster_x, cluster_y, slocs_fh)
         assert coord not in coord_dict
-        coord_dict[coord] = l1, l2, l3, l4, l5
+        coord_dict[coord] = all_levs
 
     for key in coord_dict.keys():
-        print "%s\n%s\n%s\n%s\n%s\n%s" % (key,
-                                  ",".join(str(n) for n in coord_dict[key][0]),
-                                  ",".join(str(n) for n in coord_dict[key][1]),
-                                  ",".join(str(n) for n in coord_dict[key][2]),
-                                  ",".join(str(n) for n in coord_dict[key][3]),
-                                  ",".join(str(n) for n in coord_dict[key][4]))
+        #Print the key on a line followed by a comma-separated list of
+        #coords for each level out on one line each.
+        print(str(key))
+        for l in coord_dict[key]:
+            print(",".join( map(str,l) ))
 
     slocs_fh.close()
 
