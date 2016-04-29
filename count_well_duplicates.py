@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 from __future__ import division, print_function, absolute_import
+
+__AUTHORS__ = ['Judith Risse', 'Tim Booth']
+__VERSION__ = 0.2
+
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import sys
-
-
-import logging
+from itertools import islice
 import Levenshtein
 import bcl_direct_reader
 from target import load_targets
@@ -13,6 +15,9 @@ from target import load_targets
 DEF_SEQ = HIGHSEQ_4000 = "hiseq_4000"
 HIGHSEQ_X = "hiseq_x"
 
+#Used for indexing tuple per target:
+TALLY = 0
+LENGTH = 1
 
 def get_edit_distance(str1, str2):
     return Levenshtein.distance(str1, str2)
@@ -21,55 +26,17 @@ def get_edit_distance(str1, str2):
 def get_hamming_distance(str1, str2):
     return Levenshtein.hamming(str1, str2)
 
+def log(msg):
+    print(str(msg), file=sys.stderr)
 
-def output_writer(lane, tile_dupl, levels):
-    sys.stdout.write("Current lane: %s\n"%lane)
-    l_tally = [0] * (levels + 1)
-    l_length = [0] * (levels + 1)
-
-    for tile in tile_dupl.keys():
-        sys.stdout.write("Tile %s\n" % tile)
-        levels_tally = 0
-        levels_length = 0
-        for level in range(1, levels+1):
-            # {'1208': [ {'length': 0, 'tally': 0},
-            #            {'length': 5989, 'tally': 181},
-            #            {'length': 11966, 'tally': 335},
-            #            {'length': 17939, 'tally': 509} ]}
-            t_tally = tile_dupl[tile][level]['tally']
-            l_tally[level] += t_tally
-            levels_tally += t_tally
-            t_length = tile_dupl[tile][level]['length']
-            l_length[level] += t_length
-            levels_length = t_length
-            perc_dup = t_tally / t_length * 100
-            perc_dup_cum = levels_tally / levels_length * 100
-            sys.stdout.write("Level %s: %s\tcumulative: %s\n" %
-                                (level, perc_dup,       perc_dup_cum))
-    sys.stdout.write("Lane %s\n" % lane)
-    cum_tally = 0
-    cum_length = 0
-    for level in range(1,levels+1):
-        cum_tally += l_tally[level]
-        cum_length = l_length[level]
-        perc_dup = l_tally[level] / l_length[level] * 100
-        perc_dup_cum = cum_tally / cum_length * 100
-        sys.stdout.write("Level %s: %s\tcumulative: %s\n" % (level, perc_dup, perc_dup_cum))
-
+def output_writer(lane, tile_dupl, levels=0):
+    To be written, in accordance with the test!
 
 def main():
     # Setup options
-    optparser = _prepare_argparser()
-    args = optparser.parse_args()
-    # verify options
-    arg_pass = _verify_option(args)
-    if not arg_pass:
-        logging.critical("Non valid arguments: exit")
-        sys.exit(1)
+    args = parse_args()
 
-    lanes = range(1, 8)
-    if args.lane:
-        lanes = args.lane.split(',')
+    lanes = args.lane.split(',') if args.lane else range(1, 8+1)
 
     tiles = []
     max_tile = 0
@@ -82,7 +49,7 @@ def main():
         tiles = args.tile_id.split(',')
     else:
         for swath in [11, 12, 21, 22]:
-            for tile in range(1, max_tile):  # should be 24 for hiseq_X
+            for tile in range(1,max_tile+1):  # should be 24 for hiseq_X
                 tile_id = "%s%02d" % (swath, tile)
                 tiles.append(tile_id)
 
@@ -98,13 +65,11 @@ def main():
 
             # Initialise tally and length counters for this tile
             tile_dupl[tile] = [{'tally': 0, 'length': 0} for level in range(0, args.level+1)]
-            target_counter = 0
-            for target in targets.get_all_targets():
-                target_counter += 1
-                if target_counter >= args.sample_size:
-                    break
+
+            for target in islice(targets.get_all_targets(), 0, args.sample_size):
+
                 center = target.get_centre()
-                #sys.stderr.write("Center: %s\n"%center)
+                #log("Center: %s"%center)
 
                 # if the center sequence does not pass the pass filter we don't assess edit distance
                 # as large number of Ns compared to other reads with large number of Ns results in
@@ -122,33 +87,32 @@ def main():
 
                         if dist <= args.edit_distance:
                             l_dupl.append(1)
-                            sys.stderr.write("Center seq: %s\n"%center_seq)
-                            sys.stderr.write("well seq: %s\n"%well_seq)
-                            sys.stderr.write("edit distance: %s\n"%dist)
+                            log("Center seq: %s" % center_seq)
+                            log("well seq: %s" % well_seq)
+                            log("edit distance: %s" % dist)
                         else:
                             l_dupl.append(0)
-                    if sum(l_dupl)>=1:
+                    if sum(l_dupl) >= 1:
                         tile_dupl[tile][level]['tally'] += 1
                     tile_dupl[tile][level]['length'] += 1
-                    #tile_dupl[tile][level]['tally'] += sum(l_dupl)
-                    #tile_dupl[tile][level]['length'] += len(l_dupl)
-            sys.stderr.write(str(tile_dupl))
+
+                    # TODO - see if the lines above were really what you wanted and if
+                    # so fix the comment in output_writer to reflect what we are actually
+                    # recording.
+
+            log(tile_dupl)
         output_writer(lane, tile_dupl, args.level)
 
 
-def _prepare_argparser():
-    """Prepare optparser object. New options will be added in this
-    function first.
-    """
-    usage = """usage: %prog <-f coord_file> [-e edit_distance -n sample_size -l level]"""
+def parse_args():
     description = """This script creates or executes commands that will assess well duplicates
     in a run without mapping. Reads within level l of a selected reads from the coordinate file
     will be assessed for Levenshtein (edit) distance.
     """
 
-    prog_version = "0.1"
     parser = ArgumentParser(description=description, formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-f", "--coord_file", dest="coord_file", type=str,
+
+    parser.add_argument("-f", "--coord_file", dest="coord_file", required=True,
                         help="The file containing the random sample per tile.")
     parser.add_argument("-e", "--edit_distance", dest="edit_distance", type=int, default=2,
                         help="max edit distance between two reads to count as duplicate")
@@ -157,9 +121,9 @@ def _prepare_argparser():
                              " of prepared clusters is 10000 at the moment)")
     parser.add_argument("-l", "--level", dest="level", type=int, default=3,
                         help="levels around central spot to test, max = 3")
-    parser.add_argument("-s", "--stype", dest="stype", type=str,
-                        help="Sequencer model, must be one of highseq_4000 or highseq_x")
-    parser.add_argument("-r", "--run", dest="run", type=str,
+    parser.add_argument("-s", "--stype", dest="stype", required=True, choices={HIGHSEQ_4000, HIGHSEQ_X},
+                        help="Sequencer model")
+    parser.add_argument("-r", "--run", dest="run", required=True,
                         help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
     parser.add_argument("-t", "--tile", dest="tile_id", type=str,
                         help="specific tile on a lane to analyse, four digits, follow Illumina tile numbering")
@@ -169,26 +133,9 @@ def _prepare_argparser():
                         help="Starting base position for the slice of read to be examined")
     parser.add_argument("-y", "--end", dest="end", type=int, default=100,
                         help="Final base position for the slice of read to be examined")
+    parser.add_argument("--version", action="version", version=str(__VERSION__))
 
-    return parser
-
-
-def _verify_option(options):
-    """Check if the mandatory option are present in the options objects.
-    @return False if any argument is wrong."""
-    arg_pass = True
-
-    if not options.coord_file:
-        logging.error("You must specify a coordinates file.")
-        arg_pass = False
-    if not options.run:
-        logging.error("You must specify a run folder")
-        arg_pass = False
-    if (not options.stype) or (options.stype not in [HIGHSEQ_4000, HIGHSEQ_X]):
-        logging.error("You must specify a sequencer model")
-        arg_pass = False
-    return arg_pass
-
+    return parser.parse_args()
 
 if __name__ == "__main__":
     main()

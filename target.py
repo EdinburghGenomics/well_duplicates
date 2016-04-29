@@ -53,7 +53,7 @@ class AllTargets:
         self.levels = None
 
     def get_all_targets(self):
-
+        """Returns a list of target objects"""
         return self._target_dict.values()
 
     def get_target_by_centre(self, centre):

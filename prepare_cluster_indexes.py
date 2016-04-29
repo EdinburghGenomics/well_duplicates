@@ -43,14 +43,14 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh, levels=5):
     """
     MAX_SEARCH_AREA = 20000
 
-    l_index = [ [] for l in range(levels) ]
+    l_index = [[]] * levels
 
     # reset slocs file handle to position 12 bytes (i.e. after the header)i
     # or 5000*8bytes (0 or 5000 lines) before cluster_coord
     # TODO max distance for hiseq 4000, need to check for X
     offset_coord = max([0, cluster_coord - MAX_SEARCH_AREA])
     offset = offset_coord * 8 + 12 #Byte offset in the file
-    log(str(offset))
+    log(offset)
     slocs_fh.seek(offset)
     for coords in enumerate(yield_coords(slocs_fh)):
         (x, y) = coords[1]
@@ -61,8 +61,19 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh, levels=5):
             if MAX_DISTS[lev] < dist <= MAX_DISTS[lev+1]:
                 l_index[lev].append(cluster_index)
 
+        #Stop searching when we get over 20000 records away
         if cluster_index > cluster_coord + MAX_SEARCH_AREA:
             break
+
+    #Ensure we got something at every level
+    for lev in range(l_index):
+        if not l_index[lev]:
+            raise RuntimeError(
+                "Got no wells for cluster %s at (%s,%s) level %s",
+                                         (cluster_coord,
+                                                 cluster_x,
+                                                    cluster_y,lev) )
+
     return l_index
 
 
@@ -104,7 +115,7 @@ def yield_coords(f):
         buf = f.read(8)
 
 def log(msg):
-    print(msg, file=sys.stderr)
+    print(str(msg), file=sys.stderr)
 
 def main():
     args = parse_args()
@@ -130,7 +141,7 @@ def main():
 
     random_sample = get_random_array(MAX_CLUSTERS, args.sample_size, args.seed)
 
-    log(str(random_sample))
+    log(random_sample)
 
 
     coord_dict = {}
