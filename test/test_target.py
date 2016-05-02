@@ -33,9 +33,51 @@ class TestTargetReader(unittest.TestCase):
         self.all_targets = load_targets(TEST_FILE)
 
     def test_load_subset(self):
-        sub_targets = load_targets(TEST_FILE, 2)
+        sub_targets = load_targets(TEST_FILE, levels=2)
 
         self.assertEqual(sub_targets.levels, 2)
+
+    def test_load_limit(self):
+        lim_targets = load_targets(TEST_FILE, limit=2)
+
+        self.assertEqual(len(lim_targets), 2)
+
+        #Test iteration over all targets
+        count = 0
+        for targ in lim_targets:
+            count +=1
+
+        self.assertEqual(count, 2)
+
+    def test_get_all_indices(self):
+        #Use the first two targets, as above
+        lim_targets = load_targets(TEST_FILE, levels=3, limit=2)
+
+        self.assertEqual(
+            set(lim_targets.get_all_indices(0)),
+            set((1998850, 3178500))
+        )
+
+        self.assertEqual(
+            set(lim_targets.get_all_indices(1)),
+            set(map(int,(
+                "1997278,1997279,1998849,1998851,2000420,2000421," +
+                "3176929,3176930,3178499,3178501,3180071,3180072"
+                ).split(",")))
+        )
+
+        self.assertEqual(
+            set(lim_targets.get_all_indices(None)),
+            set(map(int,(
+                "1998850,1997278,1997279,1998849,1998851,2000420," +
+                "2000421,1995707,1995708,1995709,1997277,1997280," +
+                "1998848,1998852,2000419,2000422,2001991,2001992," +
+                "2001993,3178500,3176929,3176930,3178499,3178501," +
+                "3180071,3180072,3175357,3175358,3175359,3176928," +
+                "3176931,3178498,3178502,3180070,3180073,3181641," +
+                "3181642,3181643"
+                ).split(",")))
+        )
 
     def test_load_badfile(self):
 
@@ -57,7 +99,7 @@ class TestTargetReader(unittest.TestCase):
         all_targets = self.all_targets
 
         #There should be 7 of them
-        self.assertEqual(len(all_targets.get_all_targets()), 7)
+        self.assertEqual(len(all_targets), 7)
 
         #Ditto if we do it this way
         self.assertEqual(len(set(all_targets.get_all_indices(0))), 7)

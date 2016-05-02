@@ -4,7 +4,7 @@ from __future__ import print_function, division, absolute_import
 from itertools import chain
 from collections import defaultdict
 
-def load_targets(filename, levels=None):
+def load_targets(filename, levels=None, limit=None):
     """Loads the target coordinates from a CSV file.  This function will now infer
        the number of levels represented in the file, but you can opt to load just a
        subset.
@@ -31,6 +31,8 @@ def load_targets(filename, levels=None):
                     all_targets.add_target([
                             [int(x) for x in l.split(',')] for l in targ_lines[:levels]
                         ])
+                    if limit and len(all_targets) == limit:
+                        break
 
                 targ_lines = []
 
@@ -52,9 +54,12 @@ class AllTargets:
 
         self.levels = None
 
-    def get_all_targets(self):
-        """Returns a list of target objects"""
-        return self._target_dict.values()
+    def __len__(self):
+        return len(self._target_dict)
+
+    def __iter__(self):
+        """Iteration yields a list of target objects"""
+        return self._target_dict.values().__iter__()
 
     def get_target_by_centre(self, centre):
 
@@ -79,14 +84,19 @@ class AllTargets:
         for idx in new_target.get_indices():
                 self._reverse_lookup[idx].append(new_target)
 
-    def get_all_indices(self, level = None):
-
+    def get_all_indices(self, level=None):
+        """Returns all the indices held in all targets.
+           Optionally limit to level.
+        """
         if level == 0:
             #Do it the quick way
             return list(self._target_dict.keys())
-        if level is None:
-            #Flatten the list (standard Python-ism)
-            return [ y for x in self.get_all_targets() for y in x.get_indices(level) ]
+        elif level is None:
+            #Use the reverse lookup dict
+            return list(self._reverse_lookup.keys())
+        else:
+            #Scan all targets and flatten the list (standard Python-ism)
+            return [ y for x in self for y in x.get_indices(level) ]
 
     def get_from_index(self, index):
 
