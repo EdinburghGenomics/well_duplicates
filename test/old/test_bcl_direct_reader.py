@@ -20,7 +20,10 @@ except:
     raise
 
 # Note that these tests are dependent on specific files being present in
-# /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX
+# /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX.
+
+# Update on 3/5/2016 - these files have gone, so these tests will never
+# work again.
 
 TEST_PROJ = '/ifs/seqdata/150715_K00169_0016_BH3FGFBBXX'
 
