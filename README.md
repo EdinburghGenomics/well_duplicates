@@ -1,7 +1,7 @@
 Detection of Duplicates on Patterned Flowcells
 ==============================================
 
-THE PLN: Directly detect local duplicates in patterned flow cells without alignment or demultiplexing.
+***THE PLN:*** Directly detect local duplicates in patterned flow cells without alignment or demultiplexing.
 
 Overview
 --------
@@ -50,14 +50,14 @@ So in the above printout:
 * On tile 2223, 1712 of the targets had a good centre sequence and thus were actually counted
 * In total, 157089 of the 240000 targets were counted
 * Looking just at adjacent wells (level 1), in summary 942452 wells were inspected...
-** of which 583 were found to match the centre sequence (0.1% of wells)
-** which equated to 553 targets (0.4% of targets) if each target was counted just once
+ * of which 583 were found to match the centre sequence (0.1% of wells)
+ * which equated to 553 targets (0.4% of targets) if each target was counted just once
 * Totting up cumulative summary counts across all five levels...
-** 988 of the 157089 targets counted had a duplicate at level 1 or 2
-** 1344 of the 157089 targets had a duplicate at level 1, 2 or 3
-** 1933 of the targets had a duplicate well at any level
-** 309 of the targets (0.2%) had a duplicate well at level 5
-** 608 (0.4%) had a duplicate in level 5 or 4
+ * 988 of the 157089 targets counted had a duplicate at level 1 or 2
+ * 1344 of the 157089 targets had a duplicate at level 1, 2 or 3
+ * 1933 of the targets had a duplicate well at any level
+ * 309 of the targets (0.2%) had a duplicate well at level 5
+ * 608 (0.4%) had a duplicate in level 5 or 4
 
 BCL Direct Reader
 -----------------
@@ -66,7 +66,7 @@ The file ```bcl_direct_reader.py``` contains pure Python code for retrieving seq
 
 Run ```pydoc ./bcl_direct_reader.py``` for more info.
 
-Warning
--------
+Health Warning
+--------------
 
 This code is not yet well tested, specifically it has not been validated on Hiseq X data, though it is designed to work on those flowcells.
