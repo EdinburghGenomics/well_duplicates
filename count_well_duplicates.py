@@ -216,7 +216,7 @@ def main():
 
             #log(lane_dupl)
         #Write output per lane
-        output_writer(lane, len(targets), lane_dupl, args.level, not args.summary_only)
+        output_writer(lane, len(targets), lane_dupl, verbose = not args.summary_only)
 
 
 def parse_args():

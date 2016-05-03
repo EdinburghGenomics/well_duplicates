@@ -84,6 +84,12 @@ Level: 1   Wells: 24   Dups: 5 (0.208)   Hit: 2 (0.500)   AccO: 2 (0.500)   AccI
 Level: 2   Wells: 44   Dups: 3 (0.068)   Hit: 3 (0.750)   AccO: 3 (0.750)   AccI: 3 (0.750)
 """
 
+# Empty output when the lane is totally bad and no targets are read at all.
+EXPECTED_OUT_4 = """
+Lane: 1   Tile: 1222   Targets: 0/4
+LaneSummary: 1   Tiles: 1   Targets: 0/4
+"""
+
 class TestCountWellDuplicates(unittest.TestCase):
 
     #Capture sys.stdout - standard Mock procedure.
@@ -115,6 +121,15 @@ class TestCountWellDuplicates(unittest.TestCase):
         output_writer(1, 4, LANE_DUPL, verbose=1, levels=2)
 
         self._rescmp(mock_stdout, EXPECTED_OUT_3)
+
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_output_writer_empty_data(self, mock_stdout):
+
+        #Note if you try to specify levels you'll get a div by zero
+        #error, but otherwise you'll just get a blank result.
+        output_writer(1, 4, {'1222':  [ ] }, verbose=1)
+
+        self._rescmp(mock_stdout, EXPECTED_OUT_4)
 
     def _rescmp(self, ioobj, astring, start=0, end=None):
         """This just helps you to compare the thing that got printed
