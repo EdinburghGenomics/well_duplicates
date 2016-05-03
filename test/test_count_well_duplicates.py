@@ -47,9 +47,9 @@ Level: 1   Wells: 24   Dups: 5   Hit: 2   AccO: 2   AccI: 3
 Level: 2   Wells: 44   Dups: 3   Hit: 3   AccO: 3   AccI: 3
 Level: 3   Wells: 60   Dups: 1   Hit: 1   AccO: 3   AccI: 1
 LaneSummary: 1   Tiles: 1   Targets: 4/4
-Level: 1   Wells: 24   Dups: 5 (0.208)   Hit: 2 (0.500)   AccO: 2 (0.500)   AccI: 3 (0.750)
-Level: 2   Wells: 44   Dups: 3 (0.068)   Hit: 3 (0.750)   AccO: 3 (0.750)   AccI: 3 (0.750)
-Level: 3   Wells: 60   Dups: 1 (0.017)   Hit: 1 (0.250)   AccO: 3 (0.750)   AccI: 1 (0.250)
+Level: 1   Wells: 24   Dups: 5 (0.20833)   Hit: 2 (0.50000)   AccO: 2 (0.50000)   AccI: 3 (0.75000)
+Level: 2   Wells: 44   Dups: 3 (0.06818)   Hit: 3 (0.75000)   AccO: 3 (0.75000)   AccI: 3 (0.75000)
+Level: 3   Wells: 60   Dups: 1 (0.01667)   Hit: 1 (0.25000)   AccO: 3 (0.75000)   AccI: 1 (0.25000)
 """
 
 BAD_TILE_LANE = {'1209':  [ ] }  #No valid targets.
@@ -67,9 +67,9 @@ Level: 1   Wells: 0   Dups: 0   Hit: 0   AccO: 0   AccI: 0
 Level: 2   Wells: 0   Dups: 0   Hit: 0   AccO: 0   AccI: 0
 Level: 3   Wells: 0   Dups: 0   Hit: 0   AccO: 0   AccI: 0
 LaneSummary: 1   Tiles: 2   Targets: 4/8
-Level: 1   Wells: 24   Dups: 5 (0.208)   Hit: 2 (0.500)   AccO: 2 (0.500)   AccI: 3 (0.750)
-Level: 2   Wells: 44   Dups: 3 (0.068)   Hit: 3 (0.750)   AccO: 3 (0.750)   AccI: 3 (0.750)
-Level: 3   Wells: 60   Dups: 1 (0.017)   Hit: 1 (0.250)   AccO: 3 (0.750)   AccI: 1 (0.250)
+Level: 1   Wells: 24   Dups: 5 (0.20833)   Hit: 2 (0.50000)   AccO: 2 (0.50000)   AccI: 3 (0.75000)
+Level: 2   Wells: 44   Dups: 3 (0.06818)   Hit: 3 (0.75000)   AccO: 3 (0.75000)   AccI: 3 (0.75000)
+Level: 3   Wells: 60   Dups: 1 (0.01667)   Hit: 1 (0.25000)   AccO: 3 (0.75000)   AccI: 1 (0.25000)
 """
 
 # If we just ask for 2 levels?
@@ -80,8 +80,8 @@ Lane: 1   Tile: 1208   Targets: 4/4
 Level: 1   Wells: 24   Dups: 5   Hit: 2   AccO: 2   AccI: 3
 Level: 2   Wells: 44   Dups: 3   Hit: 3   AccO: 3   AccI: 3
 LaneSummary: 1   Tiles: 1   Targets: 4/4
-Level: 1   Wells: 24   Dups: 5 (0.208)   Hit: 2 (0.500)   AccO: 2 (0.500)   AccI: 3 (0.750)
-Level: 2   Wells: 44   Dups: 3 (0.068)   Hit: 3 (0.750)   AccO: 3 (0.750)   AccI: 3 (0.750)
+Level: 1   Wells: 24   Dups: 5 (0.20833)   Hit: 2 (0.50000)   AccO: 2 (0.50000)   AccI: 3 (0.75000)
+Level: 2   Wells: 44   Dups: 3 (0.06818)   Hit: 3 (0.75000)   AccO: 3 (0.75000)   AccI: 3 (0.75000)
 """
 
 # Empty output when the lane is totally bad and no targets are read at all.

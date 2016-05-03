@@ -121,11 +121,11 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
                                                    sample_size*len(lane_dupl) ))
 
     for lev in range(levels):
-        print("Level: %i\tWells: %i\tDups: %i (%.3f)\t" % (
+        print("Level: %i\tWells: %i\tDups: %i (%.5f)\t" % (
                       lev+1,     tot_wells[lev],
                                            tot_dups[lev],
                                                tot_dups[lev] / tot_wells[lev]) +
-              "Hit: %i (%.3f)\tAccO: %i (%.3f)\tAccI: %i (%.3f)" % (
+              "Hit: %i (%.5f)\tAccO: %i (%.5f)\tAccI: %i (%.5f)" % (
                     tot_hits[lev],
                         tot_hits[lev] / tot_targets,
                                      tot_acco[lev],
