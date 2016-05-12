@@ -43,7 +43,9 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh, levels=5):
     """
     MAX_SEARCH_AREA = 20000
 
-    l_index = [[]] * levels
+    # I tried replacing this with "[[]] * levels" but that yields a list of N
+    # references to a single list.  Oops.
+    l_index = [[] for l in range(levels)]
 
     # reset slocs file handle to position 12 bytes (i.e. after the header)i
     # or 5000*8bytes (0 or 5000 lines) before cluster_coord
@@ -66,7 +68,7 @@ def get_indexes(cluster_coord, cluster_x, cluster_y, slocs_fh, levels=5):
             break
 
     #Ensure we got something at every level
-    for lev in range(l_index):
+    for lev, wells in enumerate(l_index):
         if not l_index[lev]:
             raise RuntimeError(
                 "Got no wells for cluster %s at (%s,%s) level %s",
