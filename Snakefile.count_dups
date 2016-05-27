@@ -32,6 +32,7 @@ test -e "$datadir"/Data/Intensities/s.locs
 test -e "$datadir"/RunInfo.xml
 
 workdir="${WORKDIR:-$datadir/../../runqc/WellDuplicates/`basename $datadir`}"
+workdir="`readlink -f "$workdir"`"
 #Make $workdir and in the process ensure the script only runs once.
 #Link the $datadir back to the $workdir
 mkdir "$workdir"
@@ -65,6 +66,7 @@ fi
 
 #!/usr/bin/env snakemake
 from snakemake.utils import format
+import xml.etree.ElementTree as ET
 
 #Regular glob() is useful but it can be improved like so.
 import os
@@ -73,13 +75,15 @@ glob = lambda pathname: sorted(_glob(os.path.expanduser(pathname)))
 
 workdir: config['workdir']
 
-#Configuration options
-targets_to_sample = 10000
-lanes_to_sample = "1 2 3 4 5 6 7 8"
-start_pos = 20
-end_pos = 70
-levels_to_scan = 5
-report_verbose = True
+#Configuration options as constants
+
+TARGETS_TO_SAMPLE = 10000
+LANES_TO_SAMPLE = "1 2 3 4 5 6 7 8"
+READ_LENGTH = 50
+LEVELS_TO_SCAN = 5
+REPORT_VERBOSE = True
+
+### Calculate some derived options
 
 #Find the scripts if they are in the same folder as this one,
 #even if it's not in the default PATH.
@@ -91,44 +95,78 @@ else:
 PREP_INDICES    =_PATHSET + "prepare_cluster_indexes.py"
 COUNT_WELL_DUPL =_PATHSET + "count_well_duplicates.py"
 
-### Helper functions
+#Get the run info
+run_info_root = ET.parse("datadir/RunInfo.xml").getroot()
 
-"""This is somewhat backwards.  The scripts only use the machine type
-   to decide how many tiles to process, but here we look at the number
-   of tiles in order to infer the machine type.
-"""
-try:
-    shell("grep -q '<Tile>._2228</Tile>' datadir/RunInfo.xml")
+# This is somewhat backwards.  The scripts only use the machine type
+# to decide how many tiles to process, but here we look for a high-numbered
+# tile in order to infer the machine type.
+if run_info_root.find(".//Tiles[Tile='1_2228']") is not None:
     MACHTYPE = 'hiseq_4000'
-except:
+else:
     MACHTYPE = 'hiseq_x'
 
+# For most runs we want to start at read 20, but some runs only have 51
+# cycles in read1.
+num_cycles = int(run_info_root.find("Run/Reads/Read[@Number='1']").get('NumCycles'))
+if(num_cycles > READ_LENGTH + 20):
+    START_POS = 20
+else:
+    assert num_cycles > READ_LENGTH
+    START_POS = 0
+END_POS = READ_LENGTH + START_POS
+
 ### Specific rules
-localrules: main
+localrules: main, summarize_all_lanes
 
 """Main rule just defines everything to be generated.
    The shell script should have made me a new working folder with datadir
    being a symlink to the sequencer output directory.
 """
 rule main:
+    input: format("{TARGETS_TO_SAMPLE}targets_all_lanes.txt")
+
+rule summarize_all_lanes:
+    output: "{targets}targets_all_lanes.txt"
     input:
-        expand( "dupes_{targets}_{lane}.txt",
-                 targets=int(targets_to_sample),
-                 lane=lanes_to_sample.split() )
+        expand( "{{targets}}targets_lane{lane}.txt",
+                 lane=LANES_TO_SAMPLE.split() )
+    shell: "tail -n $(( {LEVELS_TO_SCAN} + 1 )) {input} > {output}"
 
 rule count_well_dupl:
-    output: "dupes_{targets}_{lane}.txt"
+    output: "{targets}targets_lane{lane}.txt"
     input: targets=MACHTYPE + "_{targets}clusters.list"
-    params: summary='-S' if not report_verbose else ''
+    params: summary='-S' if not REPORT_VERBOSE else ''
     shell:
         "{COUNT_WELL_DUPL} -f {input.targets} -s {MACHTYPE} -r datadir" +
-        " -i {wildcards.lane} -l {levels_to_scan} -x {start_pos} -y {end_pos}" +
+        " -i {wildcards.lane} -l {LEVELS_TO_SCAN} -x {START_POS} -y {END_POS}" +
         " {params.summary} > {output}"
 
 rule prep_indices:
     output: MACHTYPE + "_{targets}clusters.list"
-    shell:
-        "{PREP_INDICES} -n {wildcards.targets} -f datadir/Data/Intensities/s.locs > {output}"
+    run:
+        #We don't want to re-calculate indices every time, but we don't
+        #want to assume to locs files are all identical.  So let's have
+        #a shared pool of cluster lists based on the md5sum of the s.locs
+        slocs = "datadir/Data/Intensities/s.locs"
+
+        if os.path.exists("../cluster_lists"):
+            md5, = [ l.split()[0] for l in
+                     shell("md5sum {slocs}", iterable=True) ]
+            cached_list = format("../cluster_lists/{wildcards.targets}clusters_{md5}.list")
+
+            if not os.path.exists(format("{cached_list}.done")):
+                #Make it now.  Slight paranoia regarding race condition on the file.
+                #If two processes try to generate the .list file at once then one should
+                #at least fail with a modicum of grace.  If PREP_INDICES fails for
+                #some reason, future jobs will fail until you fix or delete the partial output.
+                shell("set -o noclobber ;" +
+                      " {PREP_INDICES} -n {wildcards.targets} -f {slocs} > {cached_list}")
+                shell("touch {cached_list}.done")
+            shell("ln -sr {cached_list} {output}")
+        else:
+            #No-cache mode it is, then
+            shell("{PREP_INDICES} -n {wildcards.targets} -f {slocs} > {output}")
 
 
 ### Generic rules
