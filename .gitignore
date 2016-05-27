@@ -1,4 +1,6 @@
 *.pyc
 *.swp
 tmp
+tmp_*
 *.list
+sge_output
