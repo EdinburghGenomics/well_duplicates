@@ -21,9 +21,9 @@
 set -e ; set -u ; set -x
 
 threads=${SNAKE_THREADS:-8}
+queue=${CLUSTER_QUEUE:-default}
 
 datadir="${DATADIR:-`pwd`}"
-test -e "$datadir"
 
 #Don't run until there is a RTARead1Complete.txt touch file,
 #and a RunInfo.xml
@@ -31,7 +31,7 @@ test -e "$datadir"/RTARead1Complete.txt
 test -e "$datadir"/Data/Intensities/s.locs
 test -e "$datadir"/RunInfo.xml
 
-workdir="${WORKDIR:-$DATADIR/../../runqc/WellDuplicates/`basename $DATADIR`}"
+workdir="${WORKDIR:-$datadir/../../runqc/WellDuplicates/`basename $datadir`}"
 #Make $workdir and in the process ensure the script only runs once.
 #Link the $datadir back to the $workdir
 mkdir "$workdir"
@@ -39,13 +39,13 @@ ln -sr "$datadir" "$workdir/datadir"
 
 #Before changing dir, get the real path to this file on the assumption that
 #count_well_duplicates.py may well be there.
-#I can't just prepend it to the PATH as it won't carry across to cluster jobs.
+#I can't just prepend it to the PATH here as it won't carry across to cluster jobs.
 scriptdir="`dirname $0`"
 
 ## And off we go.
 if [ "${NOCLUSTER:-0}" = 1 ] ; then
     set +e
-    snakemake -s "$0" -j 1 --config workdir="$workdir" -- "$@"
+    snakemake -s "$0" -j 1 --config workdir="$workdir" scriptdir="$scriptdir" -- "$@"
 else
     ## Ensure the cluster output is going to the right place.
     mkdir -p "$workdir"/sge_output
@@ -55,7 +55,7 @@ else
      -s "$0" -j $threads -T \
      --config workdir="$workdir" scriptdir="$scriptdir" \
      -p --jobname "{rulename}.snakejob.{jobid}.sh" \
-     --drmaa " -q qc -cwd -S /bin/bash -p -10 -V -pe single \
+     --drmaa " -q $queue -cwd -S /bin/bash -p -10 -V \
                -o "$workdir"/sge_output -e "$workdir"/sge_output \
              " \
      -- "$@"
@@ -76,6 +76,8 @@ workdir: config['workdir']
 #Configuration options
 targets_to_sample = 10000
 lanes_to_sample = "1 2 3 4 5 6 7 8"
+start_pos = 20
+end_pos = 70
 levels_to_scan = 5
 report_verbose = True
 
@@ -83,7 +85,7 @@ report_verbose = True
 #even if it's not in the default PATH.
 if 'scriptdir' in config:
     _PATHSET = 'PATH=\'%s\'":$PATH" ' % config['scriptdir']
-else
+else:
     _PATHSET = ''
 
 PREP_INDICES    =_PATHSET + "prepare_cluster_indexes.py"
@@ -95,36 +97,38 @@ COUNT_WELL_DUPL =_PATHSET + "count_well_duplicates.py"
    to decide how many tiles to process, but here we look at the number
    of tiles in order to infer the machine type.
 """
-if shell("grep -q '<Tile>._2228</Tile>' datadir/RunInfo.xml"):
+try:
+    shell("grep -q '<Tile>._2228</Tile>' datadir/RunInfo.xml")
     MACHTYPE = 'hiseq_4000'
-else:
+except:
     MACHTYPE = 'hiseq_x'
 
 ### Specific rules
 localrules: main
 
 """Main rule just defines everything to be generated.
-   For simplicity, I'm storing all the results directly in the
-   sequence data folder.
+   The shell script should have made me a new working folder with datadir
+   being a symlink to the sequencer output directory.
 """
 rule main:
-    input: expand( "dupes_{targets}_{lane}.txt",
-                   targets=int(targets_to_sample),
-                   lane=lanes_to_sample.split() )
+    input:
+        expand( "dupes_{targets}_{lane}.txt",
+                 targets=int(targets_to_sample),
+                 lane=lanes_to_sample.split() )
 
 rule count_well_dupl:
     output: "dupes_{targets}_{lane}.txt"
     input: targets=MACHTYPE + "_{targets}clusters.list"
-    params: startpos=20, endpos=70, levels=5
+    params: summary='-S' if not report_verbose else ''
     shell:
         "{COUNT_WELL_DUPL} -f {input.targets} -s {MACHTYPE} -r datadir" +
-        " -i {wildcards.lane} -l {params.levels} -x {params.startpos} -y {params.endpos}" +
-        " > {output}"
+        " -i {wildcards.lane} -l {levels_to_scan} -x {start_pos} -y {end_pos}" +
+        " {params.summary} > {output}"
 
 rule prep_indices:
     output: MACHTYPE + "_{targets}clusters.list"
     shell:
-        "{PREP_INDICES} -n {targets} -f datadir/Data/Intensities/s.locs > {output}"
+        "{PREP_INDICES} -n {wildcards.targets} -f datadir/Data/Intensities/s.locs > {output}"
 
 
 ### Generic rules
