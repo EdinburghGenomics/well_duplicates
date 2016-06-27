@@ -1,14 +1,16 @@
 #!/bin/bash
 # vim: ft=python
 
-# Execution script for count_well_duplicates.py based on Snakemake
-# Requires Snakemake in your default PATH, and the well_duplicates
-# Python scripts to be in the same dir as this script or in your
-# default PATH (remember temporary settings of $PATH don't transfer
-# over the cluster).
+# Execution script for count_well_duplicates.py based on Snakemake.
+# Requires Snakemake in your default PATH, and the well_duplicates Python scripts
+# to be in the same dir as this script or in your default PATH (remember
+# temporary settings of $PATH don't transfer if you spawn jobs over the cluster).
 # If $DATADIR is set, reads from that folder, else CWD
 # If $WORKDIR is set, works in that folder, else
-# ../../runqc/WellDuplicates/`basename $PWD`
+#   ../../runqc/WellDuplicates/`basename $PWD`
+
+# You don't need a cluster environment to run this, but in any case you'll need
+# to set $CLUSTER_QUEUE to something, even if you set it to "none".
 
 # Contents >>>
 #   + Embedded BASH script to bootstrap the workflow
@@ -21,9 +23,16 @@
 set -e ; set -u ; set -x
 
 threads=${SNAKE_THREADS:-8}
-queue=${CLUSTER_QUEUE:-default}
+
+#You have to set CLUSTER_QUEUE.  There is no default now!
+#Normally at EG it will be "casava"
+#It can be "none" if you want to just run on the local machine.
+queue=${CLUSTER_QUEUE}
 
 datadir="${DATADIR:-`pwd`}"
+
+#Set SNAKE_RERUN=1 if you want to enable re-running on an existing workdir
+rerun=${SNAKE_RERUN:-0}
 
 #Don't run until there is a RTARead1Complete.txt touch file,
 #and a RunInfo.xml
@@ -35,6 +44,7 @@ workdir="${WORKDIR:-$datadir/../../runqc/WellDuplicates/`basename $datadir`}"
 workdir="`readlink -f "$workdir"`"
 #Make $workdir and in the process ensure the script only runs once.
 #Link the $datadir back to the $workdir
+if [ "$rerun" != 0 ] ; then set +e ; fi
 mkdir "$workdir"
 ln -sr "$datadir" "$workdir/datadir"
 
@@ -44,7 +54,8 @@ ln -sr "$datadir" "$workdir/datadir"
 scriptdir="`dirname $0`"
 
 ## And off we go.
-if [ "${NOCLUSTER:-0}" = 1 ] ; then
+cd /tmp
+if [ "${queue}" = none ] ; then
     set +e
     snakemake -s "$0" -j 1 --config workdir="$workdir" scriptdir="$scriptdir" -- "$@"
 else
@@ -52,14 +63,19 @@ else
     mkdir -p "$workdir"/sge_output
 
     set +e
+
+    #Annoyingly I'm getting intermittent failures, so enable 3 retries as a crude
+    #workaround.
+    for try in 1 2 3 ; do
     snakemake \
      -s "$0" -j $threads -T \
      --config workdir="$workdir" scriptdir="$scriptdir" \
      -p --jobname "{rulename}.snakejob.{jobid}.sh" \
-     --drmaa " -q $queue -cwd -S /bin/bash -p -10 -V \
+     --drmaa " -q $queue -S /bin/bash -p -10 -V \
                -o "$workdir"/sge_output -e "$workdir"/sge_output \
              " \
      -- "$@"
+     done
 fi
 
 "exit""" ### End of shell script part
