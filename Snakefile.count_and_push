@@ -65,9 +65,9 @@ else
 
     #Annoyingly I'm getting intermittent failures, so enable 3 retries as a crude
     #workaround.
-    for try in 1 ; do
+    for try in 1 2 3 4 ; do
         snakemake \
-         -s "$0" -j $threads -T --dryrun \
+         -s "$0" -j $threads -T \
          --config workdir="$workdir" scriptdir="$scriptdir" \
          -p --jobname "{rulename}.snakejob.{jobid}.sh" --rerun-incomplete \
          --drmaa " -q $queue -S /bin/bash -p -10 -V \
