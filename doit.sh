@@ -27,7 +27,7 @@ if [[ $(readlink -f "$0") != "$0" ]] ; then
 fi
 
 # 3) Refuse to run twice (depends on 2 for reliable detection)
-oldpid=`ps -lax | grep "^0.*/bash[ ]$0" | awk '{print $3}' | grep -vx $$` || true
+oldpid=`ps -lax | grep "^[04].*/bash[ l-]*$0" | awk '{print $3}' | grep -vx $$` || true
 if [[ -n "$oldpid" ]] ; then
     echo "$0 already running with PID $oldpid"
     exit 1
