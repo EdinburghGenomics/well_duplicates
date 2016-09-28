@@ -162,10 +162,10 @@ rule summarize_all_lanes:
 
 rule count_well_dupl:
     output: "{targets}targets_lane{lane}.txt"
-    input: targets=MACHTYPE + "_{targets}clusters.list"
-    params: summary='-S' if not REPORT_VERBOSE else ''
+    input: targfile = MACHTYPE + "_{targets}clusters.list"
+    params: summary = '-S' if not REPORT_VERBOSE else ''
     shell:
-        "{COUNT_WELL_DUPL} -f {input.targets} -s {MACHTYPE} -r datadir" +
+        "{COUNT_WELL_DUPL} -f {input.targfile} -n {wildcards.targets} -s {MACHTYPE} -r datadir" +
         " -i {wildcards.lane} -l {LEVELS_TO_SCAN} -x {START_POS} -y {END_POS}" +
         " {params.summary} > {output}"
 
