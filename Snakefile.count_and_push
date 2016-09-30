@@ -115,9 +115,6 @@ SUMMARY_TO_WIKI2 = _PATHSET + "summary_to_wiki2.py"
 UPLOAD_TO_WIKI   = 'env PYTHONPATH="/ifs/software/linux_x86_64/wiki_communication/current"' + \
                    ' /ifs/software/linux_x86_64/bin/python2' + \
                    ' /ifs/software/linux_x86_64/wiki_communication/current/bin/upload_file_to_wiki.py --real'
-# Testing mode
-#UPLOAD_TO_WIKI   = 'env PYTHONPATH="/home/tbooth2/workspace/masters/wiki-communication" python2' + \
-#                   ' /home/tbooth2/workspace/masters/wiki-communication/bin/upload_file_to_wiki.py --real'
 
 #Get the run info
 run_info_root = ET.parse("datadir/RunInfo.xml").getroot()
