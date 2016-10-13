@@ -6,6 +6,8 @@ import unittest
 import time
 
 try:
+    # Adding this to sys.path helps the test work if you just run it directly.
+    sys.path.insert(0,'.')
     from target import load_targets
 except:
     #If this fails, you is probably running the tests wrongly
@@ -151,3 +153,5 @@ class TestTargetReader(unittest.TestCase):
         sub_targets.add_target( [(111,), (112, 113, 114, 115)] )
         self.assertRaises(Exception, sub_targets.add_target, [(111,), (112, 113, 114, 115)])
 
+if __name__ == '__main__':
+    unittest.main()

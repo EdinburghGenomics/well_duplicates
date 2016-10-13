@@ -20,8 +20,8 @@ TALLY  = 0
 LENGTH = 1
 
 #Used for sequences returned from BCL Direct Reader
-SEQUENCE  = 0
-QUAL_FLAG = 1
+SEQUENCE  = bcl_direct_reader.SEQUENCE
+QUAL_FLAG = bcl_direct_reader.QUAL_FLAG
 
 def get_edit_distance(str1, str2):
     return Levenshtein.distance(str1, str2)
@@ -159,6 +159,12 @@ def main():
             assert t in tiles, "%s is not a valid tile for a %s" % (t, args.stype)
         tiles = args.tile_id.split(',')
 
+    #And set cycles based on either --start/--end or --cycles
+    cycles = [(args.start, args.end)]
+    if args.cycles:
+        #Minimal validation - user will get cryptic messages on bad values
+        cycles = [ (int(s), int(e)) for r in args.cycles.split(',') for s, e in (r.split('-'),) ]
+
     targets = load_targets( filename = args.coord_file,
                             levels = args.level+1,
                             limit = args.sample_size)
@@ -172,8 +178,14 @@ def main():
             tile_bcl = bcl_reader.get_tile(lane, tile)
 
             #This actually reads the sequence data from the BCL into RAM
-            seq_obj = tile_bcl.get_seqs(targets.get_all_indices(), args.start, args.end)
-            log("Got %i sequences" % len(seq_obj))
+            #Now we support ranges, we might have to do this two or more times.
+            seq_objs = []
+            for r in cycles:
+                seq_objs.append( tile_bcl.get_seqs(targets.get_all_indices(), *r) )
+
+            log("Got %i sequences from %i contiguous cycle ranges." % (
+                     sum(len(s) for s in seq_objs),
+                                       len(seq_objs) ))
 
             #Each entry in lane_dupl dict is a list of valid (ie. centre seq passed QC)
             #targets for this tile.
@@ -187,9 +199,9 @@ def main():
                 # if the center sequence does not pass the pass filter we don't assess edit distance
                 # as large number of Ns compared to other reads with large number of Ns results in
                 # small edit distance
-                if not seq_obj[center][QUAL_FLAG]:
+                if not seq_objs[0][center][QUAL_FLAG]:
                     continue
-                center_seq = seq_obj[center][SEQUENCE]
+                center_seq = ''.join(s[center][SEQUENCE] for s in seq_objs)
 
                 #Add a placeholder for the new stats
                 target_stats = [None] * args.level
@@ -202,7 +214,7 @@ def main():
                     well_indices = list(target.get_indices(level+1))
                     assert len(well_indices) > 0
                     for well_index in well_indices:
-                        well_seq = seq_obj[well_index][SEQUENCE]
+                        well_seq = ''.join(s[well_index][SEQUENCE] for s in seq_objs)
                         dist = get_edit_distance(center_seq, well_seq)
 
                         if dist <= args.edit_distance:
@@ -246,9 +258,13 @@ def parse_args():
     parser.add_argument("-i", "--lane", dest="lane", type=str,
                         help="comma-separated list of specific lanes to analyse, 1-8")
     parser.add_argument("-x", "--start", dest="start", type=int, default=50,
-                        help="Starting base position for the slice of read to be examined")
+                        help="Starting cycle/base position for the slice of read to be examined")
     parser.add_argument("-y", "--end", dest="end", type=int, default=100,
-                        help="Final base position for the slice of read to be examined")
+                        help="Final cycle/base position for the slice of read to be examined")
+    parser.add_argument("--cycles",
+                        help="Specify cycles/bases to scan as a list of ranges, eg. 10-50,100-120. Note" +
+                             " that this will override -x/-y if specified. You'll need to work out for" +
+                             " yourself which cycles correspond to which read." )
     parser.add_argument("-S", "--summary-only", action="store_true",
                         help="Only print the summary per lane, not for every tile")
     parser.add_argument("-q", "--quiet", action="store_true",

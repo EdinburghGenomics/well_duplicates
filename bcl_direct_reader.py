@@ -49,6 +49,10 @@ import gzip
 #noticeable slow-down.
 PY3 = (sys.version >= '3')
 
+#Callers may find these constants useful when dealing with results.
+SEQUENCE  = 0
+QUAL_FLAG = 1
+
 class BCLReader(object):
 
     def __init__(self, location="."):
