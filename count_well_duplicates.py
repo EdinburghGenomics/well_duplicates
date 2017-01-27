@@ -114,6 +114,16 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
             tot_acco[lev] += acco[lev]
             tot_acci[lev] += acci[lev]
 
+    #And finally the Picard-scaled percentage
+    #I have no real justification for this calculation, other than it looked reasonable
+    #at the time.
+    grand_tot_hits = tot_acci[0]
+    grand_tot_dups = sum(tot_dups)
+
+    peds = grand_tot_hits *
+           ( 1 - grand_tot_hits / ( grand_tot_dups + grand_tot_hits ) ) /
+           tot_targets
+
     #And report
     print("LaneSummary: %s\tTiles: %i\tTargets: %i/%i" % (
                         lane,      len(lane_dupl),
@@ -133,6 +143,9 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
                                                       tot_acci[lev],
                                                           tot_acci[lev] / tot_targets)
              )
+
+    print("Picard-equivalent duplication score: {:.2%}".format(peds))
+
 
 def main():
     # Setup options
