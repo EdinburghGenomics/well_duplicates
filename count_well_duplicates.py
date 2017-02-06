@@ -124,6 +124,11 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
              ( 1 - grand_tot_hits / ( grand_tot_dups + grand_tot_hits ) ) /
              tot_targets )
 
+    #Judith came up with this: 1-1/(2imcs-2)
+    peds2= ( grand_tot_hits *
+             ( 1 - grand_tot_hits / ( 2 * ((grand_tot_hits * grand_tot_hits-1) + grand_tot_dups) ) ) /
+             tot_targets )
+
     #And report
     print("LaneSummary: %s\tTiles: %i\tTargets: %i/%i" % (
                         lane,      len(lane_dupl),
@@ -144,7 +149,8 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
                                                           tot_acci[lev] / tot_targets)
              )
 
-    print("Picard-equivalent duplication score: {:.2%}".format(peds))
+    print("Picard-equivalent duplication score v1: {:.2%}".format(peds))
+    print("Picard-equivalent duplication score v2: {:.2%}".format(peds2))
 
 
 def main():
