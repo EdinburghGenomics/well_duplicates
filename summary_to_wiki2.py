@@ -23,6 +23,7 @@ def munge(line):
     if sum_mo:
         lane = sum_mo.group(1)
 
+    """
     lev1_mo = re.match("Level: 1\s", line)
     if lev1_mo:
         #headings = [i.split(": ")[0] for i in line.split("\t")]
@@ -32,6 +33,13 @@ def munge(line):
         perc_dup = round(float(frac_dup) * 100, len(frac_dup))
 
         return trow(lane, "%s %%" % perc_dup)
+    """
+    #dup_mo = re.match(r"Overall duplication .*: ([0-9.%]+)", line)
+    dup_mo = re.match(r"Picard-equivalent duplication score v2: *([0-9.%]+)", line)
+    if dup_mo:
+        #Put a space before the % sign
+        perc_dup = dup_mo.group(1).replace("%", " %")
+        return trow(lane, perc_dup)
 
 #HTML silliness
 def trow(*args):

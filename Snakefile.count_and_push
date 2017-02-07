@@ -155,7 +155,7 @@ rule summarize_all_lanes:
     input:
         expand( "{{targets}}targets_lane{lane}.txt",
                  lane=LANES_TO_SAMPLE.split() )
-    shell: "sleep 10 ; tail -n $(( {LEVELS_TO_SCAN} + 1 )) {input} > {output}"
+    shell: "sleep 10 ; tail -n $(( {LEVELS_TO_SCAN} + 4 )) {input} > {output}"
 
 rule count_well_dupl:
     output: "{targets}targets_lane{lane}.txt"

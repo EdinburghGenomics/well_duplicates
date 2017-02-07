@@ -150,8 +150,10 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
                                                           tot_acci[lev] / tot_targets)
              )
 
-    print("Picard-equivalent duplication score v1: {:.2%}".format(peds))
-    print("Picard-equivalent duplication score v2: {:.2%}".format(peds2))
+    print()
+    print("Overall duplication (Acc/Targets): {:.2%}".format(grand_tot_hits/tot_targets))
+    print("Picard-equivalent duplication v1:  {:.2%}".format(peds))
+    print("Picard-equivalent duplication v2:  {:.2%}".format(peds2))
 
 
 def main():

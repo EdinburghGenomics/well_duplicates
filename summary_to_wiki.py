@@ -14,7 +14,7 @@ import os, sys, re
 """
 
 def munge(line):
-    header_mo = re.search(r"==> (\d+)targets_lane(\d+)\.txt <==", line)
+    header_mo = re.search(r"==> [\w/]*?(\d+)targets_lane(\d+)\.txt <==", line)
     if header_mo:
         return "h3. %s targets per tile on lane %s" % header_mo.groups()
 
@@ -50,5 +50,5 @@ if __name__ == '__main__':
 
     for line in (x.rstrip("\n") for x in sys.stdin):
         munged = munge(line)
-        print(line if munged is None else munged)
+        if munged is not None: print(munged)
 
