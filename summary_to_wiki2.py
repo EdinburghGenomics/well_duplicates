@@ -35,7 +35,7 @@ def munge(line):
         return trow(lane, "%s %%" % perc_dup)
     """
     #dup_mo = re.match(r"Overall duplication .*: ([0-9.%]+)", line)
-    dup_mo = re.match(r"Picard-equivalent duplication score v2: *([0-9.%]+)", line)
+    dup_mo = re.match(r"Picard-equivalent duplication v2: *([0-9.%]+)", line)
     if dup_mo:
         #Put a space before the % sign
         perc_dup = dup_mo.group(1).replace("%", " %")
