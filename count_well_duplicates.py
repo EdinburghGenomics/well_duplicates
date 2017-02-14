@@ -126,11 +126,6 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
              tot_targets )
     else:
         peds = 0
-    #And report
-    print("LaneSummary: %s\tTiles: %i\tTargets: %i/%i" % (
-                        lane,      len(lane_dupl),
-                                                tot_targets,
-                                                   sample_size*len(lane_dupl) ))
 
     #And report
     print("LaneSummary: %s\tTiles: %i\tTargets: %i/%i" % (
