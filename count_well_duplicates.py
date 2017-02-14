@@ -117,12 +117,20 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
     #And finally the Picard-scaled percentage
     #I have no real justification for this calculation, other than it looked reasonable
     #at the time.
-    grand_tot_hits = tot_acci[0]
-    grand_tot_dups = sum(tot_dups)
+    if tot_acci:
+        grand_tot_hits = tot_acci[0]
+        grand_tot_dups = sum(tot_dups)
 
-    peds = ( grand_tot_hits *
+        peds = ( grand_tot_hits *
              ( 1 - grand_tot_hits / ( grand_tot_dups + grand_tot_hits ) ) /
              tot_targets )
+    else:
+        peds = 0
+    #And report
+    print("LaneSummary: %s\tTiles: %i\tTargets: %i/%i" % (
+                        lane,      len(lane_dupl),
+                                                tot_targets,
+                                                   sample_size*len(lane_dupl) ))
 
     #And report
     print("LaneSummary: %s\tTiles: %i\tTargets: %i/%i" % (
