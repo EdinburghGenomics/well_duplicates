@@ -53,13 +53,22 @@ ln -sr "$datadir" "$workdir/datadir"
 #I can't just prepend it to the PATH here as it won't carry across to cluster jobs.
 scriptdir="`dirname $0`"
 
+
 ## And off we go.
 if [ "${queue}" = none ] ; then
     set +e
     snakemake -s "$0" -j 1 --config workdir="$workdir" scriptdir="$scriptdir" -- "$@"
 else
-    ## Ensure the cluster output is going to the right place.
-    mkdir -p "$workdir"/sge_output
+    ## Settings specific to SLURM vs. SGE
+    if [ -e /lustre/software ] ; then
+        drmaa_args=" -p $queue"
+    else
+        drmaa_args=" -q $queue -S /bin/bash -p -10 -V \
+                     -o "$workdir"/sge_output -e "$workdir"/sge_output"
+
+        ## Ensure the cluster output is going to the right place.
+        mkdir -p "$workdir"/sge_output
+    fi
 
     set +e
 
@@ -70,10 +79,8 @@ else
          -s "$0" -j $threads -T \
          --config workdir="$workdir" scriptdir="$scriptdir" \
          -p --jobname "{rulename}.snakejob.{jobid}.sh" --rerun-incomplete \
-         --drmaa " -q $queue -S /bin/bash -p -10 -V \
-                   -o "$workdir"/sge_output -e "$workdir"/sge_output \
-                 " \
-         -- "$@"
+         --drmaa "$drmaa_args" \
+         "$@"
     sleep 5 ; done
 fi
 
@@ -92,7 +99,7 @@ workdir: config['workdir']
 
 #Configuration options as constants
 
-TARGETS_TO_SAMPLE = 10000
+TARGETS_TO_SAMPLE = 2500
 LANES_TO_SAMPLE = "1 2 3 4 5 6 7 8"
 READ_LENGTH = 50
 LEVELS_TO_SCAN = 5
@@ -111,10 +118,16 @@ PREP_INDICES     = _PATHSET + "prepare_cluster_indexes.py"
 COUNT_WELL_DUPL  = _PATHSET + "count_well_duplicates.py"
 SUMMARY_TO_WIKI  = _PATHSET + "summary_to_wiki.py"
 SUMMARY_TO_WIKI2 = _PATHSET + "summary_to_wiki2.py"
-#It's essential this does not call the default system python2
-UPLOAD_TO_WIKI   = 'env PYTHONPATH="/ifs/software/linux_x86_64/wiki_communication/current"' + \
-                   ' /ifs/software/linux_x86_64/bin/python2' + \
-                   ' /ifs/software/linux_x86_64/wiki_communication/current/bin/upload_file_to_wiki.py --real'
+
+# Per-cluster config
+if os.path.exists('/lustre/software'):
+    #Disabled for now
+    UPLOAD_TO_WIKI   = 'echo upload_file_to_wiki'
+else:
+    #It's essential this does not call the default system python2
+    UPLOAD_TO_WIKI   = 'env PYTHONPATH="/ifs/software/linux_x86_64/wiki_communication/current"' + \
+                       ' /ifs/software/linux_x86_64/bin/python2' + \
+                       ' /ifs/software/linux_x86_64/wiki_communication/current/bin/upload_file_to_wiki.py --real'
 
 #Get the run info
 run_info_root = ET.parse("datadir/RunInfo.xml").getroot()

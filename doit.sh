@@ -13,65 +13,71 @@ set -e ; set -u
 # 6) Refuse to run on the backup headnode - CHECK
 # 7) Log to a sensible location - CHECK
 
-# Here's the fix for 6 and 2...
-# Refuse to run on a machine other than headnode1
-if [[ "${HOSTNAME%%.*}" != headnode1 ]] ; then
-    echo "This script should only be run on headnode1"
+# Here's the quick fix for 6...
+# Refuse to run on headnode2
+if [[ "${HOSTNAME%%.*}" == headnode2 ]] ; then
+    echo "This script should not be run on headnode2" >&2
     exit 1
 fi
 
-# 2) If $0 is not a canonical path, gripe
-if [[ $(readlink -f "$0") != "$0" ]] ; then
-    echo "You need to run this script by absolute path: $(readlink -f "$0")"
-    exit 1
+# Settings specific to old/new clusters. Note that this stand-alone script should soon
+# be superceded on the new cluster by a QC stage incorporated into Illuminatus.
+if [ -e /lustre/software ] ; then
+    WORKDIR_ROOT="$HOME/WellDuplicates"
+    SEQDATA=/lustre/seqdata
+else
+    WORKDIR_ROOT=/ifs/runqc/WellDuplicates
+    SEQDATA=/ifs/seqdata
 fi
+LOGFILE="$WORKDIR_ROOT/logs/autorun.`date +%Y%m%d`.log"
 
-# 3) Refuse to run twice (depends on 2 for reliable detection)
-oldpid=`ps -lax | grep "^[04].*/bash[ l-]*$0" | awk '{print $3}' | grep -vx $$` || true
-if [[ -n "$oldpid" ]] ; then
-    echo "$0 already running with PID $oldpid"
-    exit 1
+# Previously the script checked 'ps' for other instances, but I'm switching to the
+# recommended 'flock' mechanism.
+FLOCK_FILE="${TMPDIR:-/tmp}/flock_$(readlink -f "$0" | md5sum | awk '{print $1}')"
+if [ "${FLOCK_ON:-0}" = 0 ] ; then
+    # echo "Locking exclusively on $FLOCK_FILE, PID=$$"
+    (   flock -n 9 || exit 33
+        export FLOCK_ON=9
+        source "$0" "$@"
+    ) 9>"$FLOCK_FILE" ; rc="$?"
+    if [ "$rc" != 0 ] ; then
+        if [ "$rc" = 33 ] ; then
+            echo "Failed to gain shared lock, PID=$$" >> "$LOGFILE"
+        else
+            #This should trigger an e-mail to the cron manager
+            echo "Script exited with error $rc" >&2
+        fi
+        exit "$rc"
+    fi
+    #Spawned copy ran, nothing more to do.
+    #echo "Exiting unlocked script, PID=$$"
+    exit 0
 fi
+#echo "Locked on $FLOCK_FILE, PID=$$"
 
 # 4) This script already runs with "bash -l" in order to set up the SGE environment
 #    and the extended PATH.  Otherwise I'd have to source /etc/profile.d/sge.sh and
 #    add to the PATH here.
 
 # Now we can send any further output to the log
-LOGFILE=/ifs/runqc/WellDuplicates/logs/autorun.`date +%Y%m%d`.log
 exec >>"$LOGFILE"
 
 # Most things are dealt with by the Snakefile.  I need to run it over all the runs
 # and push any new results that appear to web1.
 # I also need to handle logging.
-NOW=`date +%s`
 SNAKEFILE="$(dirname $(readlink -f $0))"/Snakefile.count_and_push
 export CLUSTER_QUEUE=casava
 
 echo "=== Running at `date`. PID=$$, SNAKEFILE=$SNAKEFILE, CLUSTER_QUEUE=$CLUSTER_QUEUE ==="
 
-for f in /ifs/seqdata/??????_[KE]00* ; do (
+for f in "$SEQDATA"/??????_[KE]00* ; do (
     echo "Trying to process $f"
+    export WORKDIR="$WORKDIR_ROOT/`basename $f`"
+
     cd $f && "$SNAKEFILE" 2>&1 || true
 ) ; done
 
-#This is not quoting-robust, but it will do
-new_files=0
-for f in `find /ifs/runqc/WellDuplicates/ -maxdepth 2 -mindepth 2 -name 10000targets_all_lanes.txt -newermt @$NOW` ; do
-    new_files=1
-    scp $f web1:/var/runinfo/WellDuplicates/$(basename $(dirname $f))_$(basename $f)
-done
-
-#And we can also make an overall summary table by munging the 10000targets_all_lanes.txt files.
-if [ "$new_files" = 1 ] ; then
-    ( echo Run $'\t'Lane{1..8}
-      for f in /ifs/runqc/WellDuplicates/*/10000targets_all_lanes.txt ; do
-          grep '^Level: 1' $f | sed 's/.*(\(.*\))$/\1/;H;$!d;g;s/\n/'$(basename $(dirname $f))'\t/;s/\n/\t/g'
-      done
-    ) > /ifs/runqc/WellDuplicates/summary.tsv
-    set -x
-    scp /ifs/runqc/WellDuplicates/summary.tsv web1:/var/runinfo/WellDuplicates/summary.tsv
-fi
+# Copying to web1 has been removed. See GIT on 21/2/17 for the old version.
 
 # That should doit.
 echo "=== Finished run at `date`. PID=$$ ==="
