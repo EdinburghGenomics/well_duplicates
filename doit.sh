@@ -29,7 +29,12 @@ else
     WORKDIR_ROOT=/ifs/runqc/WellDuplicates
     SEQDATA=/ifs/seqdata
 fi
-LOGFILE="$WORKDIR_ROOT/logs/autorun.`date +%Y%m%d`.log"
+
+#If run in a TTY, log to the screen, else log to the log file.
+# ie. to foce logging to a file, run ./doit.sh >/dev/null
+if [ -z "`tty`" ] ; then
+    LOGFILE="$WORKDIR_ROOT/logs/autorun.`date +%Y%m%d`.log"
+fi
 
 # Previously the script checked 'ps' for other instances, but I'm switching to the
 # recommended 'flock' mechanism.
@@ -40,18 +45,21 @@ if [ "${FLOCK_ON:-0}" = 0 ] ; then
         export FLOCK_ON=9
         source "$0" "$@"
     ) 9>"$FLOCK_FILE" ; rc="$?"
-    if [ "$rc" != 0 ] ; then
-        if [ "$rc" = 33 ] ; then
-            echo "Failed to gain shared lock, PID=$$" >> "$LOGFILE"
+    if [ "$rc" = 33 ] ; then
+        #Just means the previous run is still going.
+        slmsg="*** Failed to gain shared lock, PID=$$"
+        if [ -n "${LOGFILE:-}" ] ; then
+            echo "$slmsg" >> "$LOGFILE"
         else
-            #This should trigger an e-mail to the cron manager
-            echo "Script exited with error $rc" >&2
+            echo "$slmsg" >&2
         fi
-        exit "$rc"
+    elif [ "$rc" != 0 ] ; then
+        #This should trigger an e-mail to the cron manager
+        echo "Script exited with error $rc" >&2
     fi
-    #Spawned copy ran, nothing more to do.
+    #Else, spawned copy ran, nothing more to do.
     #echo "Exiting unlocked script, PID=$$"
-    exit 0
+    exit "$rc"
 fi
 #echo "Locked on $FLOCK_FILE, PID=$$"
 
@@ -60,7 +68,9 @@ fi
 #    add to the PATH here.
 
 # Now we can send any further output to the log
-exec >>"$LOGFILE"
+if [ -n "${LOGFILE:-}" ] ; then
+    exec >>"$LOGFILE"
+fi
 
 # Most things are dealt with by the Snakefile.  I need to run it over all the runs
 # and push any new results that appear to web1.
@@ -70,12 +80,21 @@ export CLUSTER_QUEUE=casava
 
 echo "=== Running at `date`. PID=$$, SNAKEFILE=$SNAKEFILE, CLUSTER_QUEUE=$CLUSTER_QUEUE ==="
 
-for f in "$SEQDATA"/??????_[KE]00* ; do (
+for f in "$SEQDATA"/??????_[KE]00* ; do
     echo "Trying to process $f"
     export WORKDIR="$WORKDIR_ROOT/`basename $f`"
 
-    cd $f && "$SNAKEFILE" 2>&1 || true
-) ; done
+    #If processing the run fails we do want to continue.
+    #This makes it annoying if you want to cancel the whole thing but is important
+    #to ensure one problem run doesn't gum up the whole pipeline.
+    if ( cd "$f" && "$SNAKEFILE" 2>&1 ) ; then
+        if [ "${DO_JUST_ONE:-0}" != 0 ] ; then
+            echo "Exiting as DO_JUST_ONE was set."
+            exit 0
+        fi
+    fi
+
+done
 
 # Copying to web1 has been removed. See GIT on 21/2/17 for the old version.
 

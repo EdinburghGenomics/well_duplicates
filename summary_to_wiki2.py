@@ -15,9 +15,10 @@ import os, sys, re
 """
 
 lane = "0"
+raw_perc_dup = "-"
 
 def munge(line):
-    global lane
+    global lane, raw_perc_dup
 
     sum_mo = re.match(r"LaneSummary: (\d+).*Tiles:", line)
     if sum_mo:
@@ -34,12 +35,17 @@ def munge(line):
 
         return trow(lane, "%s %%" % perc_dup)
     """
-    #dup_mo = re.match(r"Overall duplication .*: ([0-9.%]+)", line)
+    dup_mo = re.match(r"Overall duplication .*: ([0-9.%]+)", line)
+    if dup_mo:
+        raw_perc_dup = dup_mo.group(1).replace("%", " %")
+
     dup_mo = re.match(r"Picard-equivalent duplication v2: *([0-9.%]+)", line)
     if dup_mo:
         #Put a space before the % sign
         perc_dup = dup_mo.group(1).replace("%", " %")
-        return trow(lane, perc_dup)
+        _rpd = raw_perc_dup
+        raw_perc_dup = "-"
+        return trow(lane, _rpd, perc_dup)
 
 #HTML silliness
 def trow(*args):
@@ -60,7 +66,7 @@ if __name__ == '__main__':
     signal(SIGPIPE,SIG_DFL)
 
     print(h3("Well Duplicates Summary"))
-    print(tstart("Lane","Est. Duplication"))
+    print(tstart("Lane","Est. Duplication","P.E. Scaled"))
 
     for line in (x.rstrip("\n") for x in sys.stdin):
         munged = munge(line)

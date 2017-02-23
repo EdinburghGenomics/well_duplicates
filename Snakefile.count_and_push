@@ -121,7 +121,7 @@ SUMMARY_TO_WIKI2 = _PATHSET + "summary_to_wiki2.py"
 
 # Per-cluster config
 if os.path.exists('/lustre/software'):
-    #Disabled for now
+    #Disabled on GSEG for now
     UPLOAD_TO_WIKI   = 'echo upload_file_to_wiki'
 else:
     #It's essential this does not call the default system python2
