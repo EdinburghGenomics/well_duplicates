@@ -122,16 +122,17 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
         grand_tot_dups = sum(tot_dups)
 
         peds = ( grand_tot_hits *
-             ( 1 - grand_tot_hits / ( grand_tot_dups + grand_tot_hits ) ) /
-             tot_targets )
-    else:
-        peds = 0
+                 ( 1 - grand_tot_hits / ( grand_tot_dups + grand_tot_hits ) ) /
+                 tot_targets )
 
-    #Judith came up with this: 1-1/(2imcs-2)
-    #Which simplifies to...
-    peds2= ( grand_tot_hits *
-             ( 1 - grand_tot_hits / ( 2 * grand_tot_dups ) ) /
-             tot_targets )
+        #Judith came up with this: 1-1/(2imcs-2)
+        #Which simplifies to...
+        peds2= ( grand_tot_hits *
+                 ( 1 - grand_tot_hits / ( 2 * grand_tot_dups ) ) /
+                 tot_targets )
+    else:
+        peds = peds2 = 0
+
 
     #And report
     print("LaneSummary: %s\tTiles: %i\tTargets: %i/%i" % (
