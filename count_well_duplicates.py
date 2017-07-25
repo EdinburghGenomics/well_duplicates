@@ -245,8 +245,8 @@ def main():
 
                         if dist <= args.edit_distance:
                             dups += 1
-                            log("Center seq: %s" % center_seq)
-                            log("well seq: %s" % well_seq)
+                            log("centre seq at %s: %s" % (center, center_seq))
+                            log("well seq at %s: %s" % (well_index, well_seq))
                             log("edit distance: %s" % dist)
 
                     #Save a tuple of (TALLY, LENGTH)
