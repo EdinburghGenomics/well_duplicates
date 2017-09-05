@@ -93,7 +93,7 @@ workdir: config['workdir']
 
 #Configuration options as constants
 
-TARGETS_TO_SAMPLE = 10000
+TARGETS_TO_SAMPLE = 2500
 LANES_TO_SAMPLE = "1 2 3 4 5 6 7 8"
 READ_LENGTH = 50
 LEVELS_TO_SCAN = 5
@@ -155,7 +155,7 @@ rule count_well_dupl:
     params: summary = '-S' if not REPORT_VERBOSE else ''
     shell:
         "{COUNT_WELL_DUPL} -f {input.targfile} -n {wildcards.targets} -s {MACHTYPE} -r datadir" +
-        " -i {wildcards.lane} -l {LEVELS_TO_SCAN} -x {START_POS} -y {END_POS}" +
+        " -i {wildcards.lane} -l {LEVELS_TO_SCAN} --cycles {START_POS}-{END_POS}" +
         " {params.summary} > {output}"
 
 rule prep_indices:
