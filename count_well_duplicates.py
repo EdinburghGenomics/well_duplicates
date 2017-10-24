@@ -171,11 +171,20 @@ def main():
     lanes = args.lane.split(',') if args.lane else range(1, 8+1)
 
     max_tile = 24 #Works for Highseq X
+    max_swath = 22 #Works for X and 4000
     if args.stype == HIGHSEQ_4000:
         max_tile = 28
+    else:
+        try:
+            max_tile = int(args.stype) % 100
+            max_swath = int(args.stype) // 100 or 22
+        except ValueError:
+            pass # Never mind. Stick with 24/22.
 
+    # Build a list of tiles we expect to see. Swaths for the older machines are [11, 12, 21, 22] but
+    # in general and to handle the Novoseq we can infer the list from the max_swath value.
     tiles = []
-    for swath in [11, 12, 21, 22]:
+    for swath in [ '{}{}'.format(s, n) for s in range(1,max_swath//10+1) for n in range(1,max_swath%10+1) ]:
         for tile in range(1,max_tile+1):
             tiles.append("%s%02d" % (swath, tile))
 
