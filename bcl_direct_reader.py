@@ -34,6 +34,10 @@ Synopsis:
 
    how_many_valid = sum([flag1,flag2,flag3])
 
+On 24th Oct 2017:
+We'd also like this module to be able to read .cbcl files, which are concatenated BCL files
+(aka. indexed gzip files). Reading these efficiently might require changing the API a little.
+
 """
 
 from __future__ import print_function, division, absolute_import
@@ -130,6 +134,11 @@ class Tile(object):
         if not self.prefix:
             raise RuntimeError("Cannot find a .filter file for tile %s" % tile)
 
+        #The CBCL profix is in the format "L00{lane}_{surface}", where the prefix
+        #should have the same name as the data_dir, and the surface is the first
+        #digit of the tile name.
+        self.cbcl_prefix = "%s_%s" % (os.path.basename(data_dir), str(tile)[0])
+
         #Also work out the number of cycle folders.  Should be 308
         #for HiSeq 4000
         cycle_dirs = [ f for f in data_dir_listing if re.match('C\d+.1$', f) ]
@@ -156,7 +165,7 @@ class Tile(object):
         """
         #To build the sequence we have to loop over all the .bcl.gz files in the
         #cycle folders.  These are all named C[num].1 where num is 1-308 (unpadded).
-        #The first base of the read will not be in C1.1 because there is an adapter,
+        #The first base of the read will not be in C1.1 because there is an adapter (really??),
         #and also for paired-end reads it doesn't make sense to read all bases as this
         #will run though onto the other end.  However, we can worry about this later.
         if end is None:
@@ -181,56 +190,21 @@ class Tile(object):
 
         for cycle in range(start, end):
             cycle_dir = os.path.join(self.data_dir, 'C%i.1' % (cycle + 1))
+
+            # Now are we looking at .bcl.gz files or .cbcl files??
             cycle_file = os.path.join(cycle_dir, '%s.bcl.gz' % self.prefix)
+            cbcl_file  = os.path.join(cycle_dir, '%s.cbcl' % self.cbcl_prefix)
 
-            with gzip.open(cycle_file, 'rb') as fh:
-                bcl_header = fh.read(4)
+            try:
+                with gzip.open(cycle_file, 'rb') as fh:
+                    self._get_seqs_from_fh(fh, seq_collector, sorted_keys)
+            except FileNotFoundError:
+                # Try the cbcl file. If this fails allow the stack trace which will report both
+                # errors.
+                # TODO - develop this code. See cbcl_read.py
 
-                #The BCL header should be a fixed length depending on the machine type.
-                #This assertion checks that it is at least consistent with the filter
-                #file for this tile.
-                assert struct.unpack('<I', bcl_header)[0] == self.num_clusters
-
-                #I envisaged a a cunning system where we would seek through the file,
-                #just reading the chunks we wanted.  Turns out for more than, say,
-                #10 reads, it's faster just to slurp the thing.  For over 10000 it's
-                #considerably faster!
-                if len(sorted_keys) > 10:
-                    slurped_file = fh.read()
-
-                    for idx in sorted_keys:
-                        if PY3:
-                            base_byte = slurped_file[idx]
-                        else:
-                            base_byte = ord(slurped_file[idx])
-
-                        #base = 'N'
-                        #qual = 0
-                        if base_byte:
-                            #The two lowest bits give us the base call
-                            base = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
-
-                            #And the high bits give us the quality, but we're not using
-                            #it here.
-                            #qual = base_byte >> 2
-
-                            #Collect the base
-                            seq_collector[idx][cycle - start] = base
-                else:
-                    for idx in sorted_keys:
-                        fh.seek(idx + 4)
-                        #Is reading bytes 1 at a time slow?  I'd imagine that internal
-                        #cacheing negates any need for chunked reads at this level.
-                        if PY3:
-                            base_byte, = fh.read(1)
-                        else:
-                            base_byte, = struct.unpack('B', fh.read(1))
-
-                        #Copy-paste-ahoy!
-                        if base_byte:
-                            base = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
-                            seq_collector[idx][cycle - start] = base
-
+                with gzip.open(data_handle, 'rb') as fh:
+                    self._get_seqs_from_fh(fh, seq_collector, sorted_keys)
 
 
         #Now get the accept/reject flag from the .filter file
@@ -254,4 +228,58 @@ class Tile(object):
         #Remap the arrays into strings
         # return dict( idx : (nuc_string, flag) )
         return { idx : ( ''.join(seq), flag_collector[idx] ) for idx, seq in seq_collector.items() }
+
+def _get_seqs_from_fh(self, fh, seq_collector, sorted_keys):
+    """ Reads from the fh, which is presumably a gzip stream handle, and
+        adds the specified seqs to the seq_collector.
+        This is intended for internal use only.
+        And obviously it can only be called once per fh.
+    """
+    bcl_header = fh.read(4)
+
+    #The BCL header should be a fixed length depending on the machine type.
+    #This assertion checks that it is at least consistent with the filter
+    #file for this tile.
+    assert struct.unpack('<I', bcl_header)[0] == self.num_clusters
+
+    #I envisaged a a cunning system where we would seek through the file,
+    #just reading the chunks we wanted.  Turns out for more than, say,
+    #10 reads, it's faster just to slurp the thing.  For over 10000 it's
+    #considerably faster!
+    if len(sorted_keys) > 10:
+        slurped_file = fh.read()
+
+        for idx in sorted_keys:
+            if PY3:
+                base_byte = slurped_file[idx]
+            else:
+                base_byte = ord(slurped_file[idx])
+
+            #base = 'N'
+            #qual = 0
+            if base_byte:
+                #The two lowest bits give us the base call
+                base = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
+
+                #And the high bits give us the quality, but we're not using
+                #it here.
+                #qual = base_byte >> 2
+
+                #Collect the base
+                seq_collector[idx][cycle - start] = base
+    else:
+        for idx in sorted_keys:
+            fh.seek(idx + 4)
+            #Is reading bytes 1 at a time slow?  I'd imagine that internal
+            #cacheing negates any need for chunked reads at this level.
+            if PY3:
+                base_byte, = fh.read(1)
+            else:
+                base_byte, = struct.unpack('B', fh.read(1))
+
+            #Copy-paste-ahoy!
+            if base_byte:
+                base = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
+                seq_collector[idx][cycle - start] = base
+
 

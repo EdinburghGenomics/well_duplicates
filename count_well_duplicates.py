@@ -12,8 +12,8 @@ import Levenshtein
 import bcl_direct_reader
 from target import load_targets
 
-DEF_SEQ = HIGHSEQ_4000 = "hiseq_4000"
-HIGHSEQ_X = "hiseq_x"
+HISEQ_4000 = "hiseq_4000"
+HISEQ_X = "hiseq_x"
 
 #Used for indexing tuple per target:
 TALLY  = 0
@@ -172,7 +172,7 @@ def main():
 
     max_tile = 24 #Works for Highseq X
     max_swath = 22 #Works for X and 4000
-    if args.stype == HIGHSEQ_4000:
+    if args.stype == HISEQ_4000:
         max_tile = 28
     else:
         try:
@@ -283,8 +283,9 @@ def parse_args():
                              " of prepared clusters is 10000 at the moment)")
     parser.add_argument("-l", "--level", dest="level", type=int, default=3,
                         help="levels around central spot to test, max = 5")
-    parser.add_argument("-s", "--stype", dest="stype", required=True, choices={HIGHSEQ_4000, HIGHSEQ_X},
-                        help="Sequencer model")
+    parser.add_argument("-s", "--stype", dest="stype", required=True,
+                        help=("Sequencer model. Can be {HISEQ_4000} or {HISEQ_X} or else the highest tile" +
+                              " number in which case the tile/swath configuration will be inferred.").format(**globals()))
     parser.add_argument("-r", "--run", dest="run", required=True,
                         help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
     parser.add_argument("-t", "--tile", dest="tile_id", type=str,

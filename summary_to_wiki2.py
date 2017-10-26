@@ -11,7 +11,7 @@ import os, sys, re
    I could make the code output Wiki markup directly but I don't want to have
    that in the scripts, so this is done in the style of old-school "perl -p"
    regex-powered munging.
-   The output going to be added as comments so I need to generate HTML markup.
+   The output is going to be added as comments so I need to generate HTML markup.
 """
 
 lane = "0"
