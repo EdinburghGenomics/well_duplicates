@@ -2,6 +2,7 @@
 import os, sys, re
 import struct
 import gzip
+from itertools import chain
 
 # This is a stand-alone script to inspect a CBCL file - see the format description at
 # https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/bcl2fastq/bcl2fastq2_guide_15051736_v2.pdf
@@ -96,10 +97,20 @@ def main(cbcl_file):
                             os.stat(cbcl_file).st_size,
                                 os.stat(cbcl_file).st_size - (total_header_size + total_offset) ))
 
+        if not h_qbits == 2:
+            print("The code can't currently read bases where h_qbits != 2")
+            exit(0)
+
         # OK, now let's sample the first 100 bases in the first 30 tiles. Initially I'll do this
         # without reference to the filter file. Then I'll go add code that makes use of the filter to
         # support excluded_flag=1.
         basemap = ['A', 'C', 'G', 'T']
+
+        # TODO - locate and parse the filter file for this tile.
+        # TODO - translate this into a list of offsets where the wells will be found in the excluded
+        #        bcl blocks, so if the filter starts 000110101 then the lookup needs to be
+        #        [ -1, -1, -1, 0, 1, -1, 2, -1, 3 ]
+        # excluded_offsets = locate_and_load_filter_file( cbcl_file )
 
         if not excluded_flag:
             for tilenum, (offset, usize, wellcount) in sorted(offset_dict.items())[:30]:
@@ -109,35 +120,47 @@ def main(cbcl_file):
                 #Slurp it all
                 zipdata = gzip.GzipFile(fileobj=fh, mode='rb').read(usize)
 
-                #Print the first 100 bases (we can assume there are 100 since the excluded flag is off)
-                #I'll also assume that h_qbits is 2 since apparently it always is.
+                #Print the first 100 bases (we can assume there are more than 100 since the excluded flag is off)
+                #I'll also assume that h_qbits is 2 since apparently it always is (this is now checked above).
+                bases_from_start = 100 ; bases_from_end = 100
                 seq = []
-                for basen in range(100):
+                for welln in chain(range(bases_from_start), range(wellcount - bases_from_end, wellcount)):
                     # The manual says "For a two bit quality score, this is two clusters per byte where
                     # the bottom 4 bits are the first cluster and the higher 4 bits are the second cluster."
                     # TODO - must be 100% sure this is the right way around!! (Can look at the last byte
-                    # of the odd-numbered filtered data blocks to see that they are like 00001111).
-                    # By that logic, no-calls should be 0000. Ie. 0100 should be impossible - better check that.
-                    if basen % 2:
+                    # of the odd-numbered filtered data blocks to see that they are like 00001111, as well
+                    # as comparing my results to the FASTQ files).
+                    # So the structure of the first byte in a bcl block is:
+                    #   00 00 00 00 => qual_well_1 call_well_1 qual_well_0 call_well_0
+                    # By that logic, if any qual is 00 then the call must also be 00 - ie. 00110011 should
+                    # be impossible, or any other number where there is a pair of zeros not followed by
+                    # another pair of zeros.
+                    # I'll add an assertion to sanity-check this.
+                    if welln % 2:
                         # Take the high bits
-                        if zipdata[basen//2] >> 4:
-                            assert (zipdata[basen//2] >> 4) % 4, \
-                                "Found base call in high bits with 0 quality: {:08b}".format(zipdata[basen//2])
-                            seq.append(basemap[zipdata[basen//2] >> 6])
+                        if zipdata[welln//2] >> 4:
+                            assert (zipdata[welln//2] >> 6), \
+                                "Found base call in high bits with 0 quality: {:08b}".format(zipdata[welln//2])
+                            seq.append(basemap[ (zipdata[welln//2] >> 4) % 4 ])
                         else:
+                            # TODO - make this '-' if the well is flagged bad in the filter
                             seq.append('N')
                     else:
-                        if zipdata[basen//2] % 16:
-                            assert (zipdata[basen//2]) % 4, \
-                                "Found base call in low bits with 0 quality: {:08b}".format(zipdata[basen//2])
-                            seq.append(basemap[(zipdata[basen//2] >> 2) % 4])
+                        if zipdata[welln//2] % 16:
+                            assert (zipdata[welln//2] >> 2) % 4, \
+                                "Found base call in low bits with 0 quality: {:08b}".format(zipdata[welln//2])
+                            seq.append(basemap[ zipdata[welln//2] % 4 ])
                         else:
+                            # TODO - make this '-' if the well is flagged bad in the filter
                             seq.append('N')
 
-                print( "Sequence in first 100 wells of tile {} is {}".format(tilenum, ''.join(seq)) )
+                print( "Sequence in first {} wells of tile {} is {}".format(bases_from_start, tilenum, ''.join(seq[:bases_from_start])) )
+                print( "  ...and the last {} wells of tile {} is {}".format(bases_from_end, tilenum, ''.join(seq[bases_from_start:])) )
         else:
             w("Code to read the data where excluded_flag=True is still TODO.")
 
+            # TODO - similar to above. In fact, all I need is to translate welln via the lookup table, and add an extra check for
+            # the case where the whole tile is dead (less than 100 wells).
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
