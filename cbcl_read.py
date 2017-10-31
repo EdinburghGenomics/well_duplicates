@@ -179,7 +179,7 @@ def main(cbcl_file):
                     else:
                         seq.append('N')
 
-            print( "Sequence in first {} wells of tile {} is {}".format(bases_from_start, tilenum, ''.join(seq[:bases_from_start])) )
+            print( "Basecall in first {} wells of tile {} is {}".format(bases_from_start, tilenum, ''.join(seq[:bases_from_start])) )
             print( "  ...and the last {} wells of tile {} is {}".format(bases_from_end, tilenum, ''.join(seq[bases_from_start:])) )
 
 def locate_and_load_filter_file(cbcl_file, tilenum):
@@ -213,6 +213,8 @@ def locate_and_load_filter_file(cbcl_file, tilenum):
                 if flag & 0b00000001:
                     filt_offsets[n] = offset
                     offset += 1
+
+        print("[ Loaded {ff} with {p} of {t} wells passing. ]".format(ff=os.path.basename(filter_file), p=offset, t=len(filt_offsets)))
 
         return filt_offsets, offset
 
