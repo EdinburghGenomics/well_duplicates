@@ -165,17 +165,17 @@ def main(cbcl_file):
 
                 elif wellidx % 2:
                     # Take the high bits
-                    if zipdata[wellidx//2] >> 4:
-                        assert (zipdata[wellidx//2] >> 6), \
+                    if zipdata[wellidx//2] & 0b11110000:
+                        assert zipdata[wellidx//2] & 0b11000000, \
                             "Found base call in high bits with 0 quality: {:08b}".format(zipdata[wellidx//2])
-                        seq.append(basemap[ (zipdata[wellidx//2] >> 4) % 4 ])
+                        seq.append(basemap[ (zipdata[wellidx//2] & 0b00110000) >> 4 ])
                     else:
                         seq.append('N')
                 else:
-                    if zipdata[wellidx//2] % 16:
-                        assert (zipdata[wellidx//2] >> 2) % 4, \
+                    if zipdata[wellidx//2] & 0b00001111:
+                        assert zipdata[wellidx//2] & 0b00001100, \
                             "Found base call in low bits with 0 quality: {:08b}".format(zipdata[wellidx//2])
-                        seq.append(basemap[ zipdata[wellidx//2] % 4 ])
+                        seq.append(basemap[ zipdata[wellidx//2] & 0b00000011 ])
                     else:
                         seq.append('N')
 
