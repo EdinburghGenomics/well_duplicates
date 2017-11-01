@@ -1,0 +1,253 @@
+#!/bin/bash
+# vim: ft=python
+
+# This script is very specific to Edinburgh Genomics and our use of Confluence
+# Wiki.  External users should make use of Snakefile.count_dups instead.
+
+# If $DATADIR is set, reads from that folder, else CWD
+# If $WORKDIR is set, works in that folder, else
+# ../../runqc/WellDuplicates/`basename $PWD`
+
+# Contents >>>
+#   + Embedded BASH script to bootstrap the workflow
+#   + Initialisation and configuration
+#   + Helper functions
+#   + The rules specific to this workflow
+#   + More generic rules
+
+"""true" ### Begin shell script part
+set -e ; set -u
+
+threads=${SNAKE_THREADS:-8}
+
+#You have to set CLUSTER_QUEUE.  There is no default now!
+#Normally at EG it will be "casava"
+queue=${CLUSTER_QUEUE}
+
+#Set this if you want to enable re-running on an existing workdir
+rerun=${SNAKE_RERUN:-0}
+
+datadir="${DATADIR:-`pwd`}"
+
+#Don't run until there is a RTARead1Complete.txt touch file,
+#and a RunInfo.xml file (on NovoSeq we just have RTAComplete.txt?!)
+#And as we need to write to the Wiki, we need the main pipeline to
+#have already made the run page for us too.
+set -x
+compgen -G "$datadir/*upload_run_info_on_wiki*" >/dev/null
+test -e "$datadir"/RTARead1Complete.txt || test -e "$datadir"/RTAComplete.txt
+test -e "$datadir"/Data/Intensities/s.locs
+test -e "$datadir"/RunInfo.xml
+set +x
+
+workdir="${WORKDIR:-$datadir/../../runqc/WellDuplicates/`basename $datadir`}"
+workdir="`readlink -f "$workdir"`"
+#Make $workdir and in the process ensure the script only runs once.
+#Link the $datadir back to the $workdir
+if [ "$rerun" != 0 ] ; then set +e ; fi
+mkdir "$workdir"
+ln -sr "$datadir" "$workdir/datadir"
+
+#Before changing dir, get the real path to this file on the assumption that
+#count_well_duplicates.py may well be there.
+#I can't just prepend it to the PATH here as it won't carry across to cluster jobs.
+scriptdir="`dirname $0`"
+
+
+## And off we go.
+if [ "${queue}" = none ] ; then
+    set +e
+    snakemake -s "$0" -j 1 --config workdir="$workdir" scriptdir="$scriptdir" -- "$@"
+else
+    ## Settings specific to SLURM vs. SGE
+    if [ -e /lustre/software ] ; then
+        drmaa_args=" -p $queue"
+    else
+        drmaa_args=" -q $queue -S /bin/bash -p -10 -V \
+                     -o "$workdir"/sge_output -e "$workdir"/sge_output"
+
+        ## Ensure the cluster output is going to the right place.
+        mkdir -p "$workdir"/sge_output
+    fi
+
+    set +e
+
+    #Annoyingly I'm getting intermittent failures, so enable 3 retries as a crude
+    #workaround.
+    for try in 1 ; do
+        snakemake \
+         -s "$0" -j $threads -T \
+         --config workdir="$workdir" scriptdir="$scriptdir" \
+         -p --jobname "{rulename}.snakejob.{jobid}.sh" --rerun-incomplete \
+         --drmaa "$drmaa_args" \
+         "$@"
+    sleep 5 ; done
+fi
+
+"exit""" ### End of shell script part
+
+#!/usr/bin/env snakemake
+from snakemake.utils import format
+import xml.etree.ElementTree as ET
+
+#Regular glob() is useful but it can be improved like so.
+import os
+from glob import glob as _glob
+glob = lambda pathname: sorted(_glob(os.path.expanduser(pathname)))
+
+workdir: config['workdir']
+
+#Configuration options as constants
+
+TARGETS_TO_SAMPLE = 2500
+# LANES_TO_SAMPLE = "1 2 3 4 5 6 7 8" # see below
+READ_LENGTH = 50
+LEVELS_TO_SCAN = 5
+REPORT_VERBOSE = True
+
+### Calculate some derived options
+
+#Find the scripts if they are in the same folder as this one,
+#even if it's not in the default PATH.
+if 'scriptdir' in config:
+    _PATHSET = 'PATH=\'%s\'":$PATH" ' % config['scriptdir']
+else:
+    _PATHSET = ''
+
+PREP_INDICES     = _PATHSET + "prepare_cluster_indexes.py"
+COUNT_WELL_DUPL  = _PATHSET + "count_well_duplicates.py"
+SUMMARY_TO_WIKI  = _PATHSET + "summary_to_wiki.py"
+SUMMARY_TO_WIKI2 = _PATHSET + "summary_to_wiki2.py"
+
+# Per-cluster config
+# DEBUG...
+if True or os.path.exists('/lustre/software'):
+    #Disabled on GSEG for now
+    UPLOAD_TO_WIKI   = 'echo upload_file_to_wiki'
+else:
+    #It's essential this does not call the default system python2
+    UPLOAD_TO_WIKI   = 'env PYTHONPATH="/ifs/software/linux_x86_64/wiki_communication/current"' + \
+                       ' /ifs/software/linux_x86_64/bin/python2' + \
+                       ' /ifs/software/linux_x86_64/wiki_communication/current/bin/upload_file_to_wiki.py --real'
+
+#Get the run info
+run_info_root = ET.parse("datadir/RunInfo.xml").getroot()
+
+# Machine type is only used to determine the highest tile, so I'll make it
+# that you can just pass the tile number directly. Note the tiles in the XML
+# are not in order so I can't just take the last one!
+LAST_LANE, LAST_TILE = max(te.text for te in run_info_root.findall(".//Tiles/Tile")).split('_')
+
+# Lanes to sample is now variable since the arrival of NovaSeq, so get it from
+# RunInfo.xml...
+LANES_TO_SAMPLE = range(1, int(LAST_LANE) + 1)
+
+# Special option for NovaSeq (and a hacky way to activate it)
+if LAST_TILE >= '2400':
+    LANES_TO_SAMPLE = [ '{}{}'.format(l,s) for l in LANES_TO_SAMPLE for s in 'TB' ]
+
+# For most runs we want to start at read 20, but some runs only have 51
+# cycles in read1.
+num_cycles = int(run_info_root.find("Run/Reads/Read[@Number='1']").get('NumCycles'))
+if(num_cycles > READ_LENGTH + 20):
+    START_POS = 20
+else:
+    assert num_cycles > READ_LENGTH
+    START_POS = 0
+END_POS = READ_LENGTH + START_POS
+
+### Specific rules
+localrules: main, summarize_all_lanes, send_to_wiki, format_for_wiki, send_to_wiki2, format_for_wiki2
+
+"""Main rule just defines everything to be generated.
+   The shell script should have made me a new working folder with datadir
+   being a symlink to the sequencer output directory.
+"""
+rule main:
+    input: txt = format("{TARGETS_TO_SAMPLE}targets_all_lanes.txt"),
+           wiki = format("{TARGETS_TO_SAMPLE}targets_uploaded_to_wiki.touch"),
+           wiki2 = format("{TARGETS_TO_SAMPLE}targets_acci1_to_wiki.touch")
+
+rule summarize_all_lanes:
+    #sleep 2 crudely prevents re-running due to clock skew
+    output: "{targets}targets_all_lanes.txt"
+    input:
+        expand( "{{targets}}targets_lane{lane}.txt",
+                 lane=LANES_TO_SAMPLE )
+    shell: "sleep 2 ; tail -n $(( {LEVELS_TO_SCAN} + 5 )) {input} > {output}"
+
+rule count_well_dupl:
+    output: "{targets}targets_lane{lane,\d}{surface,[TB]?}.txt"
+    input: targfile = "{targets}clusters.list"
+    params:
+        summary = '-S' if not REPORT_VERBOSE else '',
+        tile = lambda wc: '-t "1..[02468]"' if wc.surface == 'T' else '-t "2..[02468]"' if wc.surface == 'B' else ''
+    shell:
+        "{COUNT_WELL_DUPL} -f {input.targfile} -n {wildcards.targets} -s {LAST_TILE} -r datadir" +
+        " -i {wildcards.lane} -l {LEVELS_TO_SCAN} -x {START_POS} -y {END_POS} {params.tile}" +
+        " {params.summary} > {output}"
+
+rule format_for_wiki:
+    #Makes a Wiki page (in Wiki markup) that can go as a sub-page of the runpage
+    #sleep 2 crudely prevents re-running due to clock skew
+    output: "{targets}targets_all_lanes.wiki"
+    input: "{targets}targets_all_lanes.txt"
+    shell: "sleep 2 ; {SUMMARY_TO_WIKI} < {input} > {output}"
+
+rule format_for_wiki2:
+    #Makes a comment (in HTML markup) that can be attached to the runpage
+    #sleep 2 prevents re-running due to clock skew
+    output: "{targets}targets_acci1.wiki"
+    input: "{targets}targets_all_lanes.txt"
+    shell: "sleep 2 ; {SUMMARY_TO_WIKI2} < {input} > {output}"
+
+rule send_to_wiki:
+    output: "{targets}targets_uploaded_to_wiki.touch"
+    input: "{targets}targets_all_lanes.wiki"
+    params: run_page = os.path.basename(os.path.realpath("datadir")),
+            page_title = "well_duplicates_" + os.path.basename(os.path.realpath("datadir"))
+    shell:
+        #This rule will push the result to the wiki, creating the .touch file
+        #which serves as a proxy for a successful upload.
+        "{UPLOAD_TO_WIKI} --overwrite -f {input} -t '{params.page_title}' -p '{params.run_page}' > {output}"
+
+# Send just the abbreviated results as a table in the comments, as requested by Karim
+rule send_to_wiki2:
+    output: "{targets}targets_acci1_to_wiki.touch"
+    input: "{targets}targets_acci1.wiki"
+    params: run_page = os.path.basename(os.path.realpath("datadir"))
+    shell:
+        #This rule will push the result to the wiki, creating the .touch file
+        #which serves as a proxy for a successful upload.
+        "{UPLOAD_TO_WIKI} -f {input} --comment -t '{params.run_page}' > {output}"
+
+rule prep_indices:
+    output: "{targets}clusters.list"
+    run:
+        #We don't want to re-calculate indices every time, but we don't
+        #want to assume to locs files are all identical.  So let's have
+        #a shared pool of cluster lists based on the md5sum of the s.locs
+        slocs = "datadir/Data/Intensities/s.locs"
+
+        if os.path.exists("../cluster_lists"):
+            md5, = [ l.split()[0] for l in
+                     shell("md5sum {slocs}", iterable=True) ]
+            cached_list = format("../cluster_lists/{wildcards.targets}clusters_{md5}.list")
+
+            if not os.path.exists(format("{cached_list}.done")):
+                #Make it now.  Slight paranoia regarding race condition on the file.
+                #If two processes try to generate the .list file at once then one should
+                #at least fail with a modicum of grace.  If PREP_INDICES fails for
+                #some reason, future jobs will fail until you fix or delete the partial output.
+                shell("set -o noclobber ;" +
+                      " {PREP_INDICES} -n {wildcards.targets} -f {slocs} > {cached_list}")
+                shell("touch {cached_list}.done")
+            shell("ln -sr {cached_list} {output}")
+        else:
+            #No-cache mode it is, then
+            shell("{PREP_INDICES} -n {wildcards.targets} -f {slocs} > {output}")
+
+
+### Generic rules
+
+# none
