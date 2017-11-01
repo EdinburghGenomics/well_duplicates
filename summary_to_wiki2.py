@@ -20,7 +20,7 @@ raw_perc_dup = "-"
 def munge(line):
     global lane, raw_perc_dup
 
-    sum_mo = re.match(r"LaneSummary: (\d+[TB]?).*Tiles:", line)
+    sum_mo = re.search(r"(\d+[TB]?)\.txt <==$", line)
     if sum_mo:
         lane = sum_mo.group(1)
 

@@ -255,11 +255,15 @@ def main():
                         well_seq = ''.join(s[well_index][SEQUENCE] for s in seq_objs)
                         dist = get_edit_distance(center_seq, well_seq)
 
+                        #Log all the duplicates. This might get fairly large!
+                        #Note that to locate the matching sequence header in a FASTQ file you need to
+                        #convert the well number into co-ords. Eg for location 123456:
+                        # $ dump_slocs.py datadir/Data/Intensities/s.locs | grep ^0123456
                         if dist <= args.edit_distance:
                             dups += 1
-                            log("Center seq: %s" % center_seq)
-                            log("well seq: %s" % well_seq)
-                            log("edit distance: %s" % dist)
+                            log("center seq at {:>07}: {}".format(center, center_seq))
+                            log("well seq at   {:>07}: {}".format(well_index, well_seq))
+                            log("edit distance: {}".format(dist))
 
                     #Save a tuple of (TALLY, LENGTH)
                     target_stats[level] = (dups, len(well_indices))
