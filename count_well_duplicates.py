@@ -6,7 +6,7 @@ __AUTHORS__ = ['Judith Risse', 'Tim Booth']
 __VERSION__ = 0.2
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import sys
+import sys, re
 from itertools import islice
 import Levenshtein
 import bcl_direct_reader
@@ -190,9 +190,12 @@ def main():
 
     #If tiles are specified check that all are valid.
     if args.tile_id:
-        for t in args.tile_id.split(','):
-            assert t in tiles, "%s is not a valid tile for a %s" % (t, args.stype)
-        tiles = args.tile_id.split(',')
+        filtered_tiles = []
+        for tpat in args.tile_id.split(','):
+            t_match = [t for t in tiles if re.match('^'+tpat+'$', t)]
+            assert t_match, "%s matches no tile identifiers for a %s" % (t, args.stype)
+            filtered_tiles.extend(t_match)
+        tiles = sorted(set(filtered_tiles))
 
     #And set cycles based on either --start/--end or --cycles
     cycles = [(args.start, args.end)]
@@ -289,8 +292,10 @@ def parse_args():
     parser.add_argument("-r", "--run", dest="run", required=True,
                         help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
     parser.add_argument("-t", "--tile", dest="tile_id", type=str,
-                        help="comma-separated list of specific tiles on a lane to analyse," +
-                             " four digits, follow Illumina tile numbering")
+                        help="comma-separated list of specific tiles on a lane to analyse." +
+                             " Four digits, using Illumina tile numbering convention. You can also use a" +
+                             " regex match so 1... for top surface only, or 1..[02468] to sample only even" +
+                             " tiles on the top surface.")
     parser.add_argument("-i", "--lane", dest="lane", type=str,
                         help="comma-separated list of specific lanes to analyse, 1-8")
     parser.add_argument("-x", "--start", dest="start", type=int, default=50,

@@ -210,7 +210,7 @@ class Tile(object):
                     self._get_seqs_from_bcl(bcl_fh, cycle - start, sorted_keys, seq_collector)
             except FileNotFoundError:
                 # Try the cbcl file. If this fails allow the stack trace which will report both
-                # errors for us.
+                # missing files.
                 # Note that this does result in opening the same CBCL file again and again
                 # for each tile, but each chunk is only unzipped once.
                 with open(cbcl_file, 'rb') as fh:
@@ -236,18 +236,19 @@ class Tile(object):
             # We already saw this!
             assert tuple(struct.unpack('<III', filt_header)) == (0, 3, self.num_clusters)
 
-            # Slurp the whole thing - file length should match what the header says.
-            filt_bytes = struct.unpack('<{}B'.format(num_clusters), filt_fh.read())
+            # Slurp the whole thing - file length should match the num_clusters value
+            # we already know.
+            filt_bytes = struct.unpack('<{}B'.format(self.num_clusters), filt_fh.read())
 
-        # Make the table off offsets
-        fo = [-1] * num_clusters
+        # Make the table of offsets
+        filt_offsets = [-1] * self.num_clusters
         offset = 0
         for n, flag in enumerate(filt_bytes):
             if flag & 0b00000001:
                 filt_offsets[n] = offset
                 offset += 1
 
-        self.filter_offsets = fo
+        self.filter_offsets = filt_offsets
         self.passing_wells = offset
 
         return self.filter_offsets
@@ -264,7 +265,7 @@ class Tile(object):
         h_version, h_size, h_basebits, h_qbits, h_bins = struct.unpack('<HIBBI', header_bytes)
 
         assert h_version == 1
-        assert h_size < 32  #Should actually be 5681 for all the current CBCL files
+        assert h_size > 32  #Should actually be 5681 for all the current CBCL files
         assert h_basebits == 2
         assert h_qbits == 2 #6 is valid but we don't support it!
         assert h_bins == 4  #implied if h_qbits is 2
@@ -278,23 +279,27 @@ class Tile(object):
         # Plus the excluded_flag which is the final byte.
         all_offset_bytes = fh.read( tile_count * 16 + 1 )
         excluded_flag = bool(all_offset_bytes[-1])
-        bcl_offset = h_size
+        t_bcl_offset = h_size
 
         # A loop is necessary as I have to tot up the csize values to get the seek offset
+        tile_as_int = int(self.tile)
         for t in range(tile_count):
             t_number, t_clusters, t_usize, t_csize = struct.unpack('<IIII', all_offset_bytes[t*16:(t+1)*16])
 
-            if t_number == self.tile:
+            if t_number == tile_as_int:
                 # Found it!
                 break
 
-            bcl_offset += t_csize
+            t_bcl_offset += t_csize
+
+        # We did find it, right?
+        assert t_number == tile_as_int
 
         # Go to the start of the block of tile data and slurp it all (even if
         # I only want 1 or 2 bases - seems pointless to try and optimise the
         # bases < 10 case)
-        fh.seek(bcl_offset)
-        zipdata = gzip.GzipFile(fileobj=fh, mode='rb').read(usize)
+        fh.seek(t_bcl_offset)
+        zipdata = gzip.GzipFile(fileobj=fh, mode='rb').read(t_usize)
 
         if excluded_flag:
             excluded_offsets = self._get_filter_offsets()
@@ -318,7 +323,7 @@ class Tile(object):
 
             # Finally it's the same as for old BCL.
             if base_byte:
-                seq_collector[welln][cycle_idx] = ('A', 'C', 'G', 'T')[wbyte & 0b00000011]
+                seq_collector[welln][cycle_idx] = ('A', 'C', 'G', 'T')[base_byte & 0b00000011]
 
     def _get_seqs_from_bcl(self, fh, cycle_idx, sorted_keys, seq_collector):
         """ Reads from the fh, which is presumably a gzip stream handle, and

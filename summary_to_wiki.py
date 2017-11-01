@@ -14,9 +14,9 @@ import os, sys, re
 """
 
 def munge(line):
-    header_mo = re.search(r"==> [\w/]*?(\d+)targets_lane(\d+)\.txt <==", line)
+    header_mo = re.search(r"==> [\w/]*?(\d+)targets_lane(\d+)([TB]?)\.txt <==", line)
     if header_mo:
-        return "h3. %s targets per tile on lane %s" % header_mo.groups()
+        return "h3. %s targets per tile on lane %s%s" % header_mo.groups()
 
     sum_mo = re.match(r"LaneSummary:.*(Tiles:.*)", line)
     if sum_mo:
