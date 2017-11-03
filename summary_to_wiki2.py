@@ -11,7 +11,7 @@ import os, sys, re
    I could make the code output Wiki markup directly but I don't want to have
    that in the scripts, so this is done in the style of old-school "perl -p"
    regex-powered munging.
-   The output going to be added as comments so I need to generate HTML markup.
+   The output is going to be added as comments so I need to generate HTML markup.
 """
 
 lane = "0"
@@ -20,7 +20,7 @@ raw_perc_dup = "-"
 def munge(line):
     global lane, raw_perc_dup
 
-    sum_mo = re.match(r"LaneSummary: (\d+).*Tiles:", line)
+    sum_mo = re.search(r"(\d+[TB]?)\.txt <==$", line)
     if sum_mo:
         lane = sum_mo.group(1)
 
@@ -39,7 +39,7 @@ def munge(line):
     if dup_mo:
         raw_perc_dup = dup_mo.group(1).replace("%", " %")
 
-    dup_mo = re.match(r"Picard-equivalent duplication v2: *([0-9.%]+)", line)
+    dup_mo = re.match(r"Picard-equivalent duplication v1: *([0-9.%]+)", line)
     if dup_mo:
         #Put a space before the % sign
         perc_dup = dup_mo.group(1).replace("%", " %")

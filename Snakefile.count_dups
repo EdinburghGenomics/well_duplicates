@@ -93,8 +93,8 @@ workdir: config['workdir']
 
 #Configuration options as constants
 
-TARGETS_TO_SAMPLE = 10000
-LANES_TO_SAMPLE = "1 2 3 4 5 6 7 8"
+TARGETS_TO_SAMPLE = 2500
+#LANES_TO_SAMPLE = "1 2 3 4 5 6 7 8" #see below
 READ_LENGTH = 50
 LEVELS_TO_SCAN = 5
 REPORT_VERBOSE = True
@@ -114,13 +114,14 @@ COUNT_WELL_DUPL =_PATHSET + "count_well_duplicates.py"
 #Get the run info
 run_info_root = ET.parse("datadir/RunInfo.xml").getroot()
 
-# This is somewhat backwards.  The scripts only use the machine type
-# to decide how many tiles to process, but here we look for a high-numbered
-# tile in order to infer the machine type.
-if run_info_root.find(".//Tiles[Tile='1_2228']") is not None:
-    MACHTYPE = 'hiseq_4000'
-else:
-    MACHTYPE = 'hiseq_x'
+# Machine type is only used to determine the highest tile, so I'll make it
+# that you can just pass the tile number directly. Note the tiles in the XML
+# are not in order so I can't just take the last one!
+LAST_LANE, LAST_TILE = max(te.text for te in run_info_root.findall(".//Tiles/Tile"))
+
+# Lanes to sample is now variable sinde the arrival of Novaseq, so get it from
+# RunInfo.xml...
+LANES_TO_SAMPLE = range(1, int(LAST_LANE) + 1)
 
 # For most runs we want to start at read 20, but some runs only have 51
 # cycles in read1.
@@ -146,20 +147,20 @@ rule summarize_all_lanes:
     output: "{targets}targets_all_lanes.txt"
     input:
         expand( "{{targets}}targets_lane{lane}.txt",
-                 lane=LANES_TO_SAMPLE.split() )
+                 lane=LANES_TO_SAMPLE )
     shell: "tail -n $(( {LEVELS_TO_SCAN} + 1 )) {input} > {output}"
 
 rule count_well_dupl:
     output: "{targets}targets_lane{lane}.txt"
-    input: targfile = MACHTYPE + "_{targets}clusters.list"
+    input: targfile = "{targets}clusters.list"
     params: summary = '-S' if not REPORT_VERBOSE else ''
     shell:
-        "{COUNT_WELL_DUPL} -f {input.targfile} -n {wildcards.targets} -s {MACHTYPE} -r datadir" +
-        " -i {wildcards.lane} -l {LEVELS_TO_SCAN} -x {START_POS} -y {END_POS}" +
+        "{COUNT_WELL_DUPL} -f {input.targfile} -n {wildcards.targets} -s {LAST_TILE} -r datadir" +
+        " -i {wildcards.lane} -l {LEVELS_TO_SCAN} --cycles {START_POS}-{END_POS}" +
         " {params.summary} > {output}"
 
 rule prep_indices:
-    output: MACHTYPE + "_{targets}clusters.list"
+    output: "{targets}clusters.list"
     run:
         #We don't want to re-calculate indices every time, but we don't
         #want to assume to locs files are all identical.  So let's have

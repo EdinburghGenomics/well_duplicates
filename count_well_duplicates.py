@@ -6,14 +6,14 @@ __AUTHORS__ = ['Judith Risse', 'Tim Booth']
 __VERSION__ = 0.2
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import sys
+import sys, re
 from itertools import islice
 import Levenshtein
 import bcl_direct_reader
 from target import load_targets
 
-DEF_SEQ = HIGHSEQ_4000 = "hiseq_4000"
-HIGHSEQ_X = "hiseq_x"
+HISEQ_4000 = "hiseq_4000"
+HISEQ_X = "hiseq_x"
 
 #Used for indexing tuple per target:
 TALLY  = 0
@@ -171,19 +171,31 @@ def main():
     lanes = args.lane.split(',') if args.lane else range(1, 8+1)
 
     max_tile = 24 #Works for Highseq X
-    if args.stype == HIGHSEQ_4000:
+    max_swath = 22 #Works for X and 4000
+    if args.stype == HISEQ_4000:
         max_tile = 28
+    else:
+        try:
+            max_tile = int(args.stype) % 100
+            max_swath = int(args.stype) // 100 or 22
+        except ValueError:
+            pass # Never mind. Stick with 24/22.
 
+    # Build a list of tiles we expect to see. Swaths for the older machines are [11, 12, 21, 22] but
+    # in general and to handle the Novoseq we can infer the list from the max_swath value.
     tiles = []
-    for swath in [11, 12, 21, 22]:
+    for swath in [ '{}{}'.format(s, n) for s in range(1,max_swath//10+1) for n in range(1,max_swath%10+1) ]:
         for tile in range(1,max_tile+1):
             tiles.append("%s%02d" % (swath, tile))
 
     #If tiles are specified check that all are valid.
     if args.tile_id:
-        for t in args.tile_id.split(','):
-            assert t in tiles, "%s is not a valid tile for a %s" % (t, args.stype)
-        tiles = args.tile_id.split(',')
+        filtered_tiles = []
+        for tpat in args.tile_id.split(','):
+            t_match = [t for t in tiles if re.match('^'+tpat+'$', t)]
+            assert t_match, "%s matches no tile identifiers for a %s" % (t, args.stype)
+            filtered_tiles.extend(t_match)
+        tiles = sorted(set(filtered_tiles))
 
     #And set cycles based on either --start/--end or --cycles
     cycles = [(args.start, args.end)]
@@ -243,11 +255,15 @@ def main():
                         well_seq = ''.join(s[well_index][SEQUENCE] for s in seq_objs)
                         dist = get_edit_distance(center_seq, well_seq)
 
+                        #Log all the duplicates. This might get fairly large!
+                        #Note that to locate the matching sequence header in a FASTQ file you need to
+                        #convert the well number into co-ords. Eg for location 123456:
+                        # $ dump_slocs.py datadir/Data/Intensities/s.locs | grep ^0123456
                         if dist <= args.edit_distance:
                             dups += 1
-                            log("centre seq at %s: %s" % (center, center_seq))
-                            log("well seq at %s: %s" % (well_index, well_seq))
-                            log("edit distance: %s" % dist)
+                            log("center seq at {:>07}: {}".format(center, center_seq))
+                            log("well seq at   {:>07}: {}".format(well_index, well_seq))
+                            log("edit distance: {}".format(dist))
 
                     #Save a tuple of (TALLY, LENGTH)
                     target_stats[level] = (dups, len(well_indices))
@@ -274,13 +290,16 @@ def parse_args():
                              " of prepared clusters is 10000 at the moment)")
     parser.add_argument("-l", "--level", dest="level", type=int, default=3,
                         help="levels around central spot to test, max = 5")
-    parser.add_argument("-s", "--stype", dest="stype", required=True, choices={HIGHSEQ_4000, HIGHSEQ_X},
-                        help="Sequencer model")
+    parser.add_argument("-s", "--stype", dest="stype", required=True,
+                        help=("Sequencer model. Can be {HISEQ_4000} or {HISEQ_X} or else the highest tile" +
+                              " number in which case the tile/swath configuration will be inferred.").format(**globals()))
     parser.add_argument("-r", "--run", dest="run", required=True,
                         help="path to base of run, i.e /ifs/seqdata/150715_K00169_0016_BH3FGFBBXX")
     parser.add_argument("-t", "--tile", dest="tile_id", type=str,
-                        help="comma-separated list of specific tiles on a lane to analyse," +
-                             " four digits, follow Illumina tile numbering")
+                        help="comma-separated list of specific tiles on a lane to analyse." +
+                             " Four digits, using Illumina tile numbering convention. You can also use a" +
+                             " regex match so 1... for top surface only, or 1..[02468] to sample only even" +
+                             " tiles on the top surface.")
     parser.add_argument("-i", "--lane", dest="lane", type=str,
                         help="comma-separated list of specific lanes to analyse, 1-8")
     parser.add_argument("-x", "--start", dest="start", type=int, default=50,

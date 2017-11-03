@@ -2,6 +2,9 @@
 set -e ; set -u
 
 ### Note: This script is unlikely to be useful outside of Edinburgh Genomics ###
+### Note2: see cron_o_matic.sh for a script that handles the locking/logging in a
+###        nice generic way - I based it on this.
+###         https://gist.github.com/tbooth/b09608aa1b44b82097860ebbb812923d
 
 # This script aims to be something that can be executed as a cron job at, say,
 # 15 minute intervals.  Therefore it needs to:
@@ -80,7 +83,7 @@ export CLUSTER_QUEUE=casava
 
 echo "=== Running at `date`. PID=$$, SNAKEFILE=$SNAKEFILE, CLUSTER_QUEUE=$CLUSTER_QUEUE ==="
 
-for f in "$SEQDATA"/??????_[KE]00* ; do
+for f in "$SEQDATA"/??????_[AKE]00* ; do
     echo "Trying to process $f"
     export WORKDIR="$WORKDIR_ROOT/`basename $f`"
 

@@ -74,7 +74,7 @@ else
 
     #Annoyingly I'm getting intermittent failures, so enable 3 retries as a crude
     #workaround.
-    for try in 1 2 3 4 ; do
+    for try in 1 ; do
         snakemake \
          -s "$0" -j $threads -T \
          --config workdir="$workdir" scriptdir="$scriptdir" \
@@ -120,7 +120,8 @@ SUMMARY_TO_WIKI  = _PATHSET + "summary_to_wiki.py"
 SUMMARY_TO_WIKI2 = _PATHSET + "summary_to_wiki2.py"
 
 # Per-cluster config
-if os.path.exists('/lustre/software'):
+# DEBUG...
+if True or os.path.exists('/lustre/software'):
     #Disabled on GSEG for now
     UPLOAD_TO_WIKI   = 'echo upload_file_to_wiki'
 else:
@@ -137,9 +138,13 @@ run_info_root = ET.parse("datadir/RunInfo.xml").getroot()
 # are not in order so I can't just take the last one!
 LAST_LANE, LAST_TILE = max(te.text for te in run_info_root.findall(".//Tiles/Tile")).split('_')
 
-# Lanes to sample is now variable sinde the arrival of Novaseq, so get it from
+# Lanes to sample is now variable since the arrival of NovaSeq, so get it from
 # RunInfo.xml...
 LANES_TO_SAMPLE = range(1, int(LAST_LANE) + 1)
+
+# Special option for NovaSeq (and a hacky way to activate it)
+if LAST_TILE >= '2400':
+    LANES_TO_SAMPLE = [ '{}{}'.format(l,s) for l in LANES_TO_SAMPLE for s in 'TB' ]
 
 # For most runs we want to start at read 20, but some runs only have 51
 # cycles in read1.
@@ -164,35 +169,37 @@ rule main:
            wiki2 = format("{TARGETS_TO_SAMPLE}targets_acci1_to_wiki.touch")
 
 rule summarize_all_lanes:
-    #sleep 10 crudely prevents re-running due to clock skew
+    #sleep 2 crudely prevents re-running due to clock skew
     output: "{targets}targets_all_lanes.txt"
     input:
         expand( "{{targets}}targets_lane{lane}.txt",
                  lane=LANES_TO_SAMPLE )
-    shell: "sleep 10 ; tail -n $(( {LEVELS_TO_SCAN} + 4 )) {input} > {output}"
+    shell: "sleep 2 ; tail -n $(( {LEVELS_TO_SCAN} + 5 )) {input} > {output}"
 
 rule count_well_dupl:
-    output: "{targets}targets_lane{lane}.txt"
+    output: "{targets}targets_lane{lane,\d}{surface,[TB]?}.txt"
     input: targfile = "{targets}clusters.list"
-    params: summary = '-S' if not REPORT_VERBOSE else ''
+    params:
+        summary = '-S' if not REPORT_VERBOSE else '',
+        tile = lambda wc: '-t "1..[02468]"' if wc.surface == 'T' else '-t "2..[02468]"' if wc.surface == 'B' else ''
     shell:
         "{COUNT_WELL_DUPL} -f {input.targfile} -n {wildcards.targets} -s {LAST_TILE} -r datadir" +
-        " -i {wildcards.lane} -l {LEVELS_TO_SCAN} -x {START_POS} -y {END_POS}" +
+        " -i {wildcards.lane} -l {LEVELS_TO_SCAN} -x {START_POS} -y {END_POS} {params.tile}" +
         " {params.summary} > {output}"
 
 rule format_for_wiki:
     #Makes a Wiki page (in Wiki markup) that can go as a sub-page of the runpage
-    #sleep 10 prevents re-running due to clock skew
+    #sleep 2 crudely prevents re-running due to clock skew
     output: "{targets}targets_all_lanes.wiki"
     input: "{targets}targets_all_lanes.txt"
-    shell: "sleep 10 ; {SUMMARY_TO_WIKI} < {input} > {output}"
+    shell: "sleep 2 ; {SUMMARY_TO_WIKI} < {input} > {output}"
 
 rule format_for_wiki2:
     #Makes a comment (in HTML markup) that can be attached to the runpage
-    #sleep 10 prevents re-running due to clock skew
+    #sleep 2 prevents re-running due to clock skew
     output: "{targets}targets_acci1.wiki"
     input: "{targets}targets_all_lanes.txt"
-    shell: "sleep 10 ; {SUMMARY_TO_WIKI2} < {input} > {output}"
+    shell: "sleep 2 ; {SUMMARY_TO_WIKI2} < {input} > {output}"
 
 rule send_to_wiki:
     output: "{targets}targets_uploaded_to_wiki.touch"
