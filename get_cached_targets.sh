@@ -11,10 +11,11 @@ set -o noclobber
 
 # Output will never be clobbered so if there's an old file you need to remove it
 # first.
-
+trap "echo 'Usage: get_cached_targets.sh <locs_file> <target_count> <output_file>'" EXIT
 locs_file="$1"
 target_count="$2"
 output_file="$3"
+trap - EXIT
 
 # First ensure I'll run the corresponding well dups scripts
 WD_ROOT="$(dirname $(readlink -f $0))"
@@ -23,14 +24,16 @@ PATH="$WD_ROOT:$PATH"
 # Then work out where the cache directory is at
 CLUSTER_LISTS="${CLUSTER_LISTS:-$WD_ROOT/cluster_lists}"
 
-if [ -d "$CACHE_DIR" ] ; then
+if [ -d "$CLUSTER_LISTS" ] ; then
     md5=`md5sum "$locs_file" | awk '{print $1}'`
 
     cached_list="$CLUSTER_LISTS/${target_count}clusters_${md5}.list"
 
     if ! [ -e "${cached_list}.done" ] ; then
+        trap "rm '$cached_list'" EXIT
         prepare_cluster_indexes.py -n "$target_count" -f "$locs_file" > "$cached_list"
         touch "${cached_list}.done"
+        trap - EXIT
     fi
     # Shall the link be relative?
     if [ "${cached_list:0:1}" = / ] ; then
