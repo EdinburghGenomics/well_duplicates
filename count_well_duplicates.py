@@ -42,7 +42,7 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
         the test code in test_count_well_duplicates.py
 
         Note it would be possible to output the data as it is generated
-        without gethering the whole lot in RAM, but this seems a pointless
+        without gathering the whole lot in RAM, but this seems a pointless
         optimization.
     """
 
@@ -131,7 +131,7 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
                  ( 1 - grand_tot_hits / ( 2 * grand_tot_dups ) ) /
                  tot_targets )
     else:
-        peds = peds2 = 0
+        grand_tot_hits = peds = peds2 = 0
 
 
     #And report
@@ -154,8 +154,10 @@ def output_writer(lane, sample_size, lane_dupl, levels=0, verbose=False):
                                                           tot_acci[lev] / tot_targets)
              )
 
+    raw_dup_rate = grand_tot_hits/tot_targets if grand_tot_hits else 0.0
+
     print()
-    print("Overall duplication (Acc/Targets): {:.2%}".format(grand_tot_hits/tot_targets))
+    print("Overall duplication (Acc/Targets): {:.2%}".format(raw_dup_rate))
     print("Picard-equivalent duplication v1:  {:.2%}".format(peds))
     print("Picard-equivalent duplication v2:  {:.2%}".format(peds2))
 
