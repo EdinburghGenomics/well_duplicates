@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import division, print_function, absolute_import
 """
 
 input: sample_size n, sequencer_type (hiseq4000, hiseqx), levels (max 3)

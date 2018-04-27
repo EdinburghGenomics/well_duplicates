@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 """
 A module to grab sequence reads direct from the .bcl and .filter files
 outputted by Illumina.  The motivation is that for some QC tasks we want
@@ -40,7 +40,6 @@ We'd also like this module to be able to read .cbcl files, which are concatenate
 
 """
 
-from __future__ import print_function, division, absolute_import
 __version__ = 1.2
 __author__ = 'Tim Booth, Edinburgh Genomics <tim.booth@ed.ac.uk>'
 

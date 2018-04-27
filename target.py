@@ -1,5 +1,4 @@
-#!python
-from __future__ import print_function, division, absolute_import
+#!python3
 
 from itertools import chain
 from collections import defaultdict

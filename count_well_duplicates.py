@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import division, print_function, absolute_import
-
 __AUTHORS__ = ['Judith Risse', 'Tim Booth']
 __VERSION__ = 0.2
 

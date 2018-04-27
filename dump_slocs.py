@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function, division, absolute_import
-
 import struct
 import math
 import sys
