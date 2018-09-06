@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 __AUTHORS__ = ['Judith Risse', 'Tim Booth']
-__VERSION__ = 0.2
+__VERSION__ = 0.3
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import sys, re
@@ -20,13 +20,6 @@ LENGTH = 1
 #Used for sequences returned from BCL Direct Reader
 SEQUENCE  = bcl_direct_reader.SEQUENCE
 QUAL_FLAG = bcl_direct_reader.QUAL_FLAG
-
-def get_edit_distance(str1, str2):
-    return Levenshtein.distance(str1, str2)
-
-
-def get_hamming_distance(str1, str2):
-    return Levenshtein.hamming(str1, str2)
 
 def log(msg):
     print(str(msg), file=sys.stderr)
@@ -188,7 +181,7 @@ def main():
         for tile in range(1,max_tile+1):
             tiles.append("%s%02d" % (swath, tile))
 
-    #If tiles are specified check that all are valid.
+    # If tiles are specified check that all are valid.
     if args.tile_id:
         filtered_tiles = []
         for tpat in args.tile_id.split(','):
@@ -197,11 +190,14 @@ def main():
             filtered_tiles.extend(t_match)
         tiles = sorted(set(filtered_tiles))
 
-    #And set cycles based on either --start/--end or --cycles
+    # And set cycles based on either --start/--end or --cycles
     cycles = [(args.start, args.end)]
     if args.cycles:
         #Minimal validation - user will get cryptic messages on bad values
         cycles = [ (int(s), int(e)) for r in args.cycles.split(',') for s, e in (r.split('-'),) ]
+
+    # Decide how we are calculating edit distances
+    get_edit_distance = Levenshtein.hamming if args.hamming else Levenshtein.distance
 
     targets = load_targets( filename = args.coord_file,
                             levels = args.level+1,
@@ -309,7 +305,9 @@ def parse_args():
     parser.add_argument("--cycles",
                         help="Specify cycles/bases to scan as a list of ranges, eg. 10-50,100-120. Note" +
                              " that this will override -x/-y if specified. You'll need to work out for" +
-                             " yourself which cycles correspond to which read." )
+                             " yourself which cycles correspond to which read.")
+    parser.add_argument("--hamming", action="store_true",
+                        help="Compare sequences using the Hamming distance rather than the Levenshtein edit distance.")
     parser.add_argument("-S", "--summary-only", action="store_true",
                         help="Only print the summary per lane, not for every tile")
     parser.add_argument("-q", "--quiet", action="store_true",
