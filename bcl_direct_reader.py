@@ -131,7 +131,7 @@ class Tile(object):
         if not self.bcl_filename:
             raise RuntimeError("Cannot find a .filter file for tile %s" % tile)
 
-        # The CBCL profix is in the format "L00{lane}_{surface}", where the prefix
+        # The CBCL filename is in the format "L00{lane}_{surface}", where the prefix
         # should have the same name as the data_dir, and the surface is the first
         # digit of the tile name.
         self.cbcl_filename = "%s_%s.cbcl" % (os.path.basename(data_dir), str(tile)[0])
